@@ -11,6 +11,11 @@ from models import model_for_faced, model_for_seedv, model_for_physio, model_for
     model_for_speech, model_for_mumtaz, model_for_seedvig, model_for_stress, model_for_tuev, model_for_tuab, \
     model_for_bciciv2a
 
+from utils.constants import LMDB_DIR_DICT, CLS_NUM_DICT, ROOT_DIR
+import os
+# os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4"
+os.environ["CUDA_VISIBLE_DEVICES"] = "5,6,7,8"
+
 
 def main():
     parser = argparse.ArgumentParser(description='Big model downstream')
@@ -32,14 +37,14 @@ def main():
     # avgpooling_patch_reps: use average pooling for patch features;
 
     """############ Downstream dataset settings ############"""
-    parser.add_argument('--downstream_dataset', type=str, default='FACED',
+    parser.add_argument('--downstream_dataset', type=str, default='BCIC-IV-2a',
                         help='[FACED, SEED-V, PhysioNet-MI, SHU-MI, ISRUC, CHB-MIT, BCIC2020-3, Mumtaz2016, '
                              'SEED-VIG, MentalArithmetic, TUEV, TUAB, BCIC-IV-2a]')
-    parser.add_argument('--datasets_dir', type=str,
-                        default='/data/datasets/BigDownstream/Faced/processed',
-                        help='datasets_dir')
-    parser.add_argument('--num_of_classes', type=int, default=9, help='number of classes')
-    parser.add_argument('--model_dir', type=str, default='/data/wjq/models_weights/Big/BigFaced', help='model_dir')
+    # parser.add_argument('--datasets_dir', type=str,
+    #                     default='/data1/labram_data/BCICIV-2a-mat', # /data1/labram_data/faced/faced-cbra-lmdb/
+    #                     help='datasets_dir')
+    # parser.add_argument('--num_of_classes', type=int, default=4, help='number of classes')
+    parser.add_argument('--model_dir', type=str, default='finetune_model', help='model_dir')
     """############ Downstream dataset settings ############"""
 
     parser.add_argument('--num_workers', type=int, default=16, help='num_workers')
@@ -48,14 +53,26 @@ def main():
                         help='multi_lr')  # set different learning rates for different modules
     parser.add_argument('--frozen', type=bool,
                         default=False, help='frozen')
-    parser.add_argument('--use_pretrained_weights', type=bool,
-                        default=True, help='use_pretrained_weights')
+    # parser.add_argument('--use_pretrained_weights', type=bool,
+    #                     default=True, help='use_pretrained_weights')
+    parser.add_argument(
+        '--use_pretrained_weights',
+        action='store_true',
+        help='use pretrained encoder weights'
+    )
     parser.add_argument('--foundation_dir', type=str,
                         default='pretrained_weights/pretrained_weights.pth',
                         help='foundation_dir')
 
     params = parser.parse_args()
+
+    # 根据数据集名称自动读取相关信息
+    dataset_name = params.downstream_dataset
+    params.datasets_dir = os.path.join(ROOT_DIR, 'lmdb', LMDB_DIR_DICT[dataset_name])
+    params.num_of_classes = CLS_NUM_DICT[dataset_name]
+
     print(params)
+    print('是否使用预训练模型', params.use_pretrained_weights)
 
     setup_seed(params.seed)
     torch.cuda.set_device(params.cuda)

@@ -143,7 +143,8 @@ if __name__ == "__main__":
     TUAB dataset is downloaded from https://isip.piconepress.com/projects/tuh_eeg/html/downloads.shtml
     """
     # root to abnormal dataset
-    root = "/data/datasets/BigDownstream/TUAB/edf"
+    root = "/data1/hust_bciml_eegdata/TUAB/"
+    lmdb_root = "/data1/hust_bciml_eegdata/lmdb/TUAB-lmdb/"
     channel_std = "01_tcp_ar"
 
     # seed = 4523
@@ -186,20 +187,20 @@ if __name__ == "__main__":
     test_n_sub = list(set([item.split("_")[0] for item in os.listdir(test_normal)]))
 
     # create the train, val, test sample folder
-    if not os.path.exists(os.path.join(root, "process_refine")):
-        os.makedirs(os.path.join(root, "process_refine"))
+    if not os.path.exists(os.path.join(lmdb_root, "process_refine")):
+        os.makedirs(os.path.join(lmdb_root, "process_refine"))
 
-    if not os.path.exists(os.path.join(root, "process_refine", "train")):
-        os.makedirs(os.path.join(root, "process_refine", "train"))
-    train_dump_folder = os.path.join(root, "process_refine", "train")
+    if not os.path.exists(os.path.join(lmdb_root, "process_refine", "train")):
+        os.makedirs(os.path.join(lmdb_root, "process_refine", "train"))
+    train_dump_folder = os.path.join(lmdb_root, "process_refine", "train")
 
-    if not os.path.exists(os.path.join(root, "process_refine", "val")):
-        os.makedirs(os.path.join(root, "process_refine", "val"))
-    val_dump_folder = os.path.join(root, "process_refine", "val")
+    if not os.path.exists(os.path.join(lmdb_root, "process_refine", "val")):
+        os.makedirs(os.path.join(lmdb_root, "process_refine", "val"))
+    val_dump_folder = os.path.join(lmdb_root, "process_refine", "val")
 
-    if not os.path.exists(os.path.join(root, "process_refine", "test")):
-        os.makedirs(os.path.join(root, "process_refine", "test"))
-    test_dump_folder = os.path.join(root, "process_refine", "test")
+    if not os.path.exists(os.path.join(lmdb_root, "process_refine", "test")):
+        os.makedirs(os.path.join(lmdb_root, "process_refine", "test"))
+    test_dump_folder = os.path.join(lmdb_root, "process_refine", "test")
 
     # fetch_folder, sub, dump_folder, labels
     parameters = []

@@ -137,7 +137,7 @@ class Trainer(object):
             print(cm)
             if not os.path.isdir(self.params.model_dir):
                 os.makedirs(self.params.model_dir)
-            model_path = self.params.model_dir + "/epoch{}_acc_{:.5f}_kappa_{:.5f}_f1_{:.5f}.pth".format(best_f1_epoch, acc, kappa, f1)
+            model_path = self.params.model_dir + "/{}_epoch{}_acc_{:.5f}_kappa_{:.5f}_f1_{:.5f}.pth".format(self.params.downstream_dataset, best_f1_epoch, acc, kappa, f1)
             torch.save(self.model.state_dict(), model_path)
             print("model save in " + model_path)
 
@@ -210,7 +210,7 @@ class Trainer(object):
             print(cm)
             if not os.path.isdir(self.params.model_dir):
                 os.makedirs(self.params.model_dir)
-            model_path = self.params.model_dir + "/epoch{}_acc_{:.5f}_pr_{:.5f}_roc_{:.5f}.pth".format(best_f1_epoch, acc, pr_auc, roc_auc)
+            model_path = self.params.model_dir + "/{}_epoch{}_acc_{:.5f}_pr_{:.5f}_roc_{:.5f}.pth".format(self.params.downstream_dataset, best_f1_epoch, acc, pr_auc, roc_auc)
             torch.save(self.model.state_dict(), model_path)
             print("model save in " + model_path)
 
@@ -280,6 +280,6 @@ class Trainer(object):
 
             if not os.path.isdir(self.params.model_dir):
                 os.makedirs(self.params.model_dir)
-            model_path = self.params.model_dir + "/epoch{}_corrcoef_{:.5f}_r2_{:.5f}_rmse_{:.5f}.pth".format(best_r2_epoch, corrcoef, r2, rmse)
+            model_path = self.params.model_dir + "/{}_epoch{}_corrcoef_{:.5f}_r2_{:.5f}_rmse_{:.5f}.pth".format(self.params.downstream_dataset, best_r2_epoch, corrcoef, r2, rmse)
             torch.save(self.model.state_dict(), model_path)
             print("model save in " + model_path)

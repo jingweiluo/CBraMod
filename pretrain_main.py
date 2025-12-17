@@ -7,7 +7,10 @@ from torch.utils.data import DataLoader
 from datasets.pretraining_dataset import PretrainingDataset
 from models.cbramod import CBraMod
 from pretrain_trainer import Trainer
+import os
+from utils.constants import ROOT_DIR, LMDB_DIR_DICT
 
+os.environ["CUDA_VISIBLE_DEVICES"] = "5,6,7,8"
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -42,10 +45,15 @@ def main():
     parser.add_argument('--need_mask', type=bool, default=True, help='need_mask')
     parser.add_argument('--mask_ratio', type=float, default=0.5, help='mask_ratio')
 
-    parser.add_argument('--dataset_dir', type=str, default='dataset_dir',
-                        help='dataset_dir')
-    parser.add_argument('--model_dir',   type=str,   default='model_dir', help='model_dir')
+    parser.add_argument('--pretrain_dataset', type=str, default='TUEG')
+    # parser.add_argument('--dataset_dir', type=str, default='dataset_dir',
+    #                     help='dataset_dir')
+    parser.add_argument('--foundation_dir',   type=str,   default='pretrained_weights', help='foundation_dir')
     params = parser.parse_args()
+
+    dataset_name = params.pretrain_dataset
+    params.dataset_dir = os.path.join(ROOT_DIR, LMDB_DIR_DICT[dataset_name])
+
     print(params)
     setup_seed(params.seed)
     pretrained_dataset = PretrainingDataset(dataset_dir=params.dataset_dir)

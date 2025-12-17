@@ -4,7 +4,7 @@ lmdb
 matplotlib
 mne
 numpy
-pandas
+pandas==1.5.3
 ptflops
 pyEDFlib
 scikit_learn

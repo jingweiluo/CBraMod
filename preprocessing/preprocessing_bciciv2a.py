@@ -13,7 +13,7 @@ def butter_bandpass(low_cut, high_cut, fs, order=5):
     b, a = butter(order, [low, high], btype='band')
     return b, a
 
-root_dir = '/data/datasets/BCICIV2a/data_mat'
+root_dir = '/data1/hust_bciml_eegdata/BCICIV-2a-mat'
 files = [file for file in os.listdir(root_dir)]
 files = sorted(files)
 
@@ -51,7 +51,7 @@ dataset = {
 # print(files_dict)
 
 
-db = lmdb.open('/data/datasets/BCICIV2a/processed_inde_avg_03_50', map_size=1610612736)
+db = lmdb.open('/data1/labram_data/BCICIV-2a-mat', map_size=1610612736)
 for files_key in files_dict.keys():
     for file in files_dict[files_key]:
         print(file)
@@ -94,6 +94,92 @@ for files_key in files_dict.keys():
                 txn.put(key=sample_key.encode(), value=pickle.dumps(data_dict))
                 txn.commit()
                 dataset[files_key].append(sample_key)
+
+# from scipy.linalg import fractional_matrix_power
+
+# def EA(x):
+#     new_x = np.zeros_like(x) #(N,C,T)
+#     cov = np.zeros((x.shape[0],x.shape[1],x.shape[1]))
+#     for i in range(x.shape[0]):
+#         cov[i] = np.cov(x[i])
+#     refEA = np.mean(cov,0)
+#     sqrtRefEA = fractional_matrix_power(refEA,-0.5)
+#     new_x = np.matmul(sqrtRefEA,x)
+#     return new_x
+
+# for files_key in files_dict.keys():
+#     print(f"===== processing subject {files_key} =====")
+
+#     # ----------------- 以被试为单位，先把所有 trial 收集起来 -----------------
+#     sub_samples = []   # 每个元素: (C,T)，EA 前的时域数据
+#     sub_labels = []    # 每个元素: label-1
+#     sub_keys   = []    # 每个元素: sample_key
+
+#     for file in files_dict[files_key]:
+#         print(file)
+#         data = scipy.io.loadmat(os.path.join(root_dir, file))
+#         num = len(data['data'][0])
+
+#         for j in range(3, num):
+#             raw_data = data['data'][0, j][0, 0][0][:, :22]   # (T_raw, 22)
+#             events   = data['data'][0, j][0, 0][1][:, 0]
+#             labels   = data['data'][0, j][0, 0][2][:, 0]
+
+#             length = raw_data.shape[0]
+#             events = events.tolist()
+#             events.append(length)
+
+#             annos = []
+#             for i in range(len(events) - 1):
+#                 annos.append((events[i], events[i + 1]))
+
+#             for i, (anno, label) in enumerate(zip(annos, labels)):
+#                 # -------- 基础预处理：中心化 + 带通 + 截 2~6s（先不做重采样/reshape） --------
+#                 sample = raw_data[anno[0]:anno[1]].transpose(1, 0)   # (C,T)
+
+#                 # 你原来的写法：按 axis=0 做均值，这里不改动
+#                 sample = sample - np.mean(sample, axis=0, keepdims=True)
+
+#                 b, a = butter_bandpass(0.3, 50, 250)
+#                 sample = lfilter(b, a, sample, -1)                    # (C,T)
+
+#                 # 截取 2~6s，原始采样率 250 Hz → 4s = 1000 点
+#                 sample = sample[:, 2 * 250:6 * 250]                   # (C, 1000)
+
+#                 sample_key = f'{file[:-4]}-{j}-{i}'
+
+#                 sub_samples.append(sample)              # 先只存 (C,T)
+#                 sub_labels.append(int(label - 1))       # 提前减 1
+#                 sub_keys.append(sample_key)
+
+#     # ----------------- 对该被试的所有 trial 做 EA -----------------
+#     if len(sub_samples) == 0:
+#         # 这个被试没有有效 trial
+#         continue
+
+#     sub_X = np.stack(sub_samples, axis=0)   # (N, C, T)
+#     sub_X_ea = EA(sub_X)                    # (N, C, T)，按被试做 EA
+
+#     # ----------------- EA 之后做 resample + reshape，再写 LMDB -----------------
+#     for n in range(sub_X_ea.shape[0]):
+#         sample_ea = sub_X_ea[n]             # (C,T) = (22, 1000)
+#         label     = sub_labels[n]           # 已经是 label-1
+#         sample_key = sub_keys[n]
+
+#         # 保留你原来的后处理逻辑：重采样 + reshape
+#         sample_ea = resample(sample_ea, 800, axis=-1)  # (22, 800)
+#         sample_ea = sample_ea.reshape(22, 4, 200)      # (22, 4, 200)
+
+#         print(sample_key, label)
+#         data_dict = {
+#             'sample': sample_ea,
+#             'label': label,
+#         }
+
+#         txn = db.begin(write=True)
+#         txn.put(key=sample_key.encode(), value=pickle.dumps(data_dict))
+#         txn.commit()
+#         dataset[files_key].append(sample_key)
 
 
 txn = db.begin(write=True)

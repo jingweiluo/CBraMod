@@ -7,7 +7,7 @@ import numpy as np
 
 
 labels = np.array([0,0,0,1,1,1,2,2,2,3,3,3,4,4,4,4,5,5,5,6,6,6,7,7,7,8,8,8])
-root_dir = '/data/cyn/FACED/Processed_data'
+root_dir = '/data1/labram_data/faced/Processed_data/'
 files = [file for file in os.listdir(root_dir)]
 files = sorted(files)
 
@@ -23,7 +23,7 @@ dataset = {
     'test': list(),
 }
 
-db = lmdb.open('/data/datasets/BigDownstream/Faced/processed', map_size=6612500172)
+db = lmdb.open('/data1/labram_data/faced/faced-cbra-lmdb/', map_size=6612500172)
 
 for files_key in files_dict.keys():
     for file in files_dict[files_key]:
