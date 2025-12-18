@@ -5,12 +5,13 @@ import torch
 from torch.utils.data import DataLoader
 
 from datasets.pretraining_dataset import PretrainingDataset
-from models.cbramod import CBraMod
+# from models.cbramod import CBraMod
+from models.mvm import CBraMod
 from pretrain_trainer import Trainer
 import os
-from utils.constants import ROOT_DIR, LMDB_DIR_DICT
+from utils.constants import ROOT_DIR, LMDB_DIR_DICT, SEQ_LEN_DICT, CHAN_NAME_DICT
 
-os.environ["CUDA_VISIBLE_DEVICES"] = "5,6,7,8"
+os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7,8"
 
 def setup_seed(seed):
     torch.manual_seed(seed)
@@ -26,7 +27,7 @@ def main():
     parser.add_argument('--cuda', type=int, default=3, help='cuda number (default: 1)')
     parser.add_argument('--parallel', type=bool, default=False, help='parallel')
     parser.add_argument('--epochs', type=int, default=40, help='number of epochs (default: 5)')
-    parser.add_argument('--batch_size', type=int, default=128, help='batch size for training (default: 32)')
+    parser.add_argument('--batch_size', type=int, default=32, help='batch size for training (default: 32)')
     parser.add_argument('--lr', type=float, default=5e-4, help='learning rate (default: 1e-3)')
     parser.add_argument('--weight_decay', type=float, default=5e-2, help='weight_decay')
     parser.add_argument('--clip_value', type=float, default=1, help='clip_value')
@@ -52,7 +53,9 @@ def main():
     params = parser.parse_args()
 
     dataset_name = params.pretrain_dataset
-    params.dataset_dir = os.path.join(ROOT_DIR, LMDB_DIR_DICT[dataset_name])
+    params.dataset_dir = os.path.join(ROOT_DIR, 'lmdb', LMDB_DIR_DICT[dataset_name])
+    ch_names = CHAN_NAME_DICT[dataset_name]
+    seq_len = SEQ_LEN_DICT[dataset_name]
 
     print(params)
     setup_seed(params.seed)
@@ -68,6 +71,10 @@ def main():
         params.in_dim, params.out_dim, params.d_model, params.dim_feedforward, params.seq_len, params.n_layer,
         params.nhead
     )
+    # # Model_B
+    # model = CBraMod(
+    #     len(ch_names), seq_len, ch_names=ch_names
+    # )
     trainer = Trainer(params, data_loader, model)
     trainer.train()
     pretrained_dataset.db.close()

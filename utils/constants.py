@@ -1,7 +1,7 @@
 ROOT_DIR='/data1/hust_bciml_eegdata/'
 
 CLS_NUM_DICT = {
-    '2a': 4,
+    'BCIC-IV-2a': 4,
     '2b': 2,
     'BNCI2015_001': 2,
     'BNCI2014_002': 2,
@@ -17,8 +17,26 @@ CLS_NUM_DICT = {
     'BCIC2020-3': 5,
 }
 
+SEQ_LEN_DICT = {
+    'BCIC-IV-2a': 4,
+    '2b': 2,
+    'BNCI2015_001': 2,
+    'BNCI2014_002': 2,
+    'Kalunga2016': 4,
+    'Nakanishi2015': 12,
+    'BNCI2014008': 2,
+    'Weibo2014': 2,
+    'Zhou2016': 2,
+    'AlexMI': 3,
+    'TUEG': 30,
+    'TUAB': 2,
+    'PhysioNet-MI': 4, # left,right,both fists,both feet
+    'FACED': 9,
+    'BCIC2020-3': 5,
+}
+
 # SUB_NUM_DICT = {
-#     '2a': 9,
+#     'BCIC-IV-2a': 9,
 #     '2b': 9,
 #     'BNCI2015_001': 9,
 #     'BNCI2014_002': 14,
@@ -35,7 +53,7 @@ CLS_NUM_DICT = {
 
 CHAN_NAME_DICT = {
     '2b': ["C3", "Cz", "C4"], # 3
-    '2a': ["Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C5", "C3", "C1", "Cz", "C2",
+    'BCIC-IV-2a': ["Fz", "FC3", "FC1", "FCz", "FC2", "FC4", "C5", "C3", "C1", "Cz", "C2",
         "C4", "C6", "CP3", "CP1", "CPz", "CP2", "CP4", "P1", "Pz", "P2", "POz"], # 22
     'TUEG': ["FP1","FP2","F3","F4","C3","C4","P3","P4","O1","O2","F7","F8","T3","T4","T5","T6","FZ","CZ","PZ"], # 19
     'BNCI2015_001': ["FC3", "FCz", "FC4", "C5", "C3", "C1", "Cz", "C2", "C4", "C6", "CP3", "CPz", "CP4"], # 13
@@ -65,7 +83,7 @@ CHAN_NAME_DICT = {
 }
 
 SFREQ_DICT = {
-    '2a': 250,
+    'BCIC-IV-2a': 250,
     '2b': 250,
     'BNCI2015_001': 512,
     'BNCI2014_002': 512,
@@ -83,7 +101,7 @@ SFREQ_DICT = {
 }
 
 DATA_DIR_DICT = {
-    '2a': 'BCICIV-2a-mat',
+    'BCIC-IV-2a': 'BCICIV-2a-mat',
     'TUEG': 'TUEG',
     'TUAB': 'TUAB',
     'TUEV': 'TUEV',
@@ -93,7 +111,7 @@ DATA_DIR_DICT = {
 }
 
 LMDB_DIR_DICT = {
-    '2a': 'BCICIV-2a-lmdb',
+    'BCIC-IV-2a': 'BCICIV-2a-lmdb',
     '2b': 'BCICIV-2b-lmdb',
     'TUEG': 'TUEG-lmdb',
     'BNCI2015_001': 'BNCI2015_001-lmdb',

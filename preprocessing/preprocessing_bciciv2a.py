@@ -51,7 +51,7 @@ dataset = {
 # print(files_dict)
 
 
-db = lmdb.open('/data1/labram_data/BCICIV-2a-mat', map_size=1610612736)
+db = lmdb.open('/data1/hust_bciml_eegdata/lmdb/BCICIV-2a-lmdb', map_size=1610612736)
 for files_key in files_dict.keys():
     for file in files_dict[files_key]:
         print(file)
