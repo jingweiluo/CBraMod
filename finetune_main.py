@@ -7,11 +7,11 @@ import torch
 from datasets import faced_dataset, seedv_dataset, physio_dataset, shu_dataset, isruc_dataset, chb_dataset, \
     speech_dataset, mumtaz_dataset, seedvig_dataset, stress_dataset, tuev_dataset, tuab_dataset, bciciv2a_dataset
 from finetune_trainer import Trainer
-from models import model_for_faced, model_for_seedv, model_for_physio, model_for_shu, model_for_isruc, model_for_chb, \
+from models import model_for_faced, model_for_faced26, model_for_seedv, model_for_physio, model_for_shu, model_for_isruc, model_for_chb, \
     model_for_speech, model_for_mumtaz, model_for_seedvig, model_for_stress, model_for_tuev, model_for_tuab, \
     model_for_bciciv2a
 
-from utils.constants import LMDB_DIR_DICT, CLS_NUM_DICT, ROOT_DIR
+from utils.constants import LMDB_DIR_DICT, CLS_NUM_DICT, ROOT_DIR, CHAN_NAME_DICT
 import os
 # os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4"
 os.environ["CUDA_VISIBLE_DEVICES"] = "5,6,7,8"
@@ -39,7 +39,7 @@ def main():
     """############ Downstream dataset settings ############"""
     parser.add_argument('--downstream_dataset', type=str, default='BCIC-IV-2a',
                         help='[FACED, SEED-V, PhysioNet-MI, SHU-MI, ISRUC, CHB-MIT, BCIC2020-3, Mumtaz2016, '
-                             'SEED-VIG, MentalArithmetic, TUEV, TUAB, BCIC-IV-2a]')
+                             'SEED-VIG, MentalArithmetic, TUEV, TUAB, BCIC-IV-2a, FACED26]')
     # parser.add_argument('--datasets_dir', type=str,
     #                     default='/data1/labram_data/BCICIV-2a-mat', # /data1/labram_data/faced/faced-cbra-lmdb/
     #                     help='datasets_dir')
@@ -51,10 +51,11 @@ def main():
     parser.add_argument('--label_smoothing', type=float, default=0.1, help='label_smoothing')
     parser.add_argument('--multi_lr', type=bool, default=True,
                         help='multi_lr')  # set different learning rates for different modules
-    parser.add_argument('--frozen', type=bool,
-                        default=False, help='frozen')
-    # parser.add_argument('--use_pretrained_weights', type=bool,
-    #                     default=True, help='use_pretrained_weights')
+    parser.add_argument(
+        '--frozen',
+        action='store_true',
+        help='frozen'
+    )
     parser.add_argument(
         '--use_pretrained_weights',
         action='store_true',
@@ -71,6 +72,12 @@ def main():
     params.datasets_dir = os.path.join(ROOT_DIR, 'lmdb', LMDB_DIR_DICT[dataset_name])
     params.num_of_classes = CLS_NUM_DICT[dataset_name]
 
+    # 计算出3d坐标
+    from utils.util import get_ch_coord
+    params.ch_names = CHAN_NAME_DICT[dataset_name]
+    params.ch_coords = get_ch_coord(dataset_name)  # (C,3)
+
+
     print(params)
     print('是否使用预训练模型', params.use_pretrained_weights)
 
@@ -81,6 +88,12 @@ def main():
         load_dataset = faced_dataset.LoadDataset(params)
         data_loader = load_dataset.get_data_loader()
         model = model_for_faced.Model(params)
+        t = Trainer(params, data_loader, model)
+        t.train_for_multiclass()
+    elif params.downstream_dataset == 'FACED26':
+        load_dataset = faced_dataset.LoadDataset(params)
+        data_loader = load_dataset.get_data_loader()
+        model = model_for_faced26.Model(params)
         t = Trainer(params, data_loader, model)
         t.train_for_multiclass()
     elif params.downstream_dataset == 'SEED-V':

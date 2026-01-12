@@ -1,5 +1,13 @@
 ROOT_DIR='/data1/hust_bciml_eegdata/'
 
+MOABB_DATASET_LIST = [
+    # e.g. "BNCI2014_001", "PhysionetMI", "Cho2017", "Lee2019_SSVEP"
+    '2b', 'BNCI2015_001', 'BNCI2014_008',
+    'Kalunga2016', 'Nakanishi2015', 'Weibo2014',
+    'Zhou2016', 'AlexMI', 'Cho2017',
+    'BI2015a', 'Lee2019_SSVEP', 'Lee2019_ERP', 'Lee2019_MI',
+]
+
 CLS_NUM_DICT = {
     'BCIC-IV-2a': 4,
     '2b': 2,
@@ -7,14 +15,20 @@ CLS_NUM_DICT = {
     'BNCI2014_002': 2,
     'Kalunga2016': 4,
     'Nakanishi2015': 12,
-    'BNCI2014008': 2,
+    'BNCI2014_008': 2,
     'Weibo2014': 2,
     'Zhou2016': 2,
     'AlexMI': 3,
     'TUAB': 2,
     'PhysioNet-MI': 4, # left,right,both fists,both feet
     'FACED': 9,
+    'FACED26': 9,
     'BCIC2020-3': 5,
+    'Cho2017': 2,
+    'BI2015a': 36,
+    'Lee2019_SSVEP': 4,
+    'Lee2019_ERP': 36,
+    'Lee2019_MI': 2,
 }
 
 SEQ_LEN_DICT = {
@@ -24,32 +38,43 @@ SEQ_LEN_DICT = {
     'BNCI2014_002': 2,
     'Kalunga2016': 4,
     'Nakanishi2015': 12,
-    'BNCI2014008': 2,
+    'BNCI2014_008': 2,
     'Weibo2014': 2,
     'Zhou2016': 2,
     'AlexMI': 3,
     'TUEG': 30,
     'TUAB': 2,
     'PhysioNet-MI': 4, # left,right,both fists,both feet
-    'FACED': 9,
+    'FACED': 10,
+    'FACED26': 10,
     'BCIC2020-3': 5,
+    'Cho2017': 3,
+    'BI2015a': 1,
+    'Lee2019_SSVEP': 4,
+    'Lee2019_ERP': 1,
+    'Lee2019_MI': 4,
 }
 
-# SUB_NUM_DICT = {
-#     'BCIC-IV-2a': 9,
-#     '2b': 9,
-#     'BNCI2015_001': 9,
-#     'BNCI2014_002': 14,
-#     'Kalunga2016': 12,
-#     'Nakanishi2015': 9, # 一共180trials
-#     'BNCI2014008': 8,
-#     'Weibo2014': 10,
-#     'Zhou2016': 4,
-#     'AlexMI': 8,
-#     'PhysioNetMI': 109,
-#     'FACED': 123,
-#     'BCIC2020-3': ,
-# }
+SUB_NUM_DICT = {
+    'BCIC-IV-2a': 9,
+    '2b': 9,
+    'BNCI2015_001': 9,
+    'BNCI2014_002': 14,
+    'Kalunga2016': 12,
+    'Nakanishi2015': 9, # 一共180trials
+    'BNCI2014_008': 8,
+    'Weibo2014': 10,
+    'Zhou2016': 4,
+    'AlexMI': 8,
+    'PhysioNetMI': 109,
+    'FACED': 123,
+    'FACED26': 123,
+    'Cho2017': 52,
+    'BI2015a': 43,
+    'Lee2019_SSVEP': 54,
+    'Lee2019_ERP': 54,
+    'Lee2019_MI': 54,
+}
 
 CHAN_NAME_DICT = {
     '2b': ["C3", "Cz", "C4"], # 3
@@ -71,6 +96,14 @@ CHAN_NAME_DICT = {
         'Pz','P3','P4',
         'PO3','PO4','Oz','O1','O2',
     ], #26 common chans
+    'FACED26': [
+        'Fp1','Fp2','Fz','F3','F4','F7','F8',
+        'FC1','FC2','FC5','FC6',
+        'Cz','C3','C4',
+        'CP1','CP2','CP5','CP6',
+        'Pz','P3','P4',
+        'PO3','PO4','Oz','O1','O2',
+    ], #26 common chans
     'BCIC2020-3': [
         "Fp1","Fp2","F7","F3","Fz","F4","F8","FC5","FC1","FC2","FC6",
         "T7","C3","Cz","C4","T8","TP9","CP5","CP1","CP2","CP6",
@@ -79,6 +112,81 @@ CHAN_NAME_DICT = {
         "FT9","FT7","FC3","FC4","FT8","FT10","C5","C1","C2","C6",
         "TP7","CP3","CPz","CP4","TP8","P5","P1","P2","P6",
         "PO7","PO3","POz","PO4","PO8"
+    ],
+    'Cho2017': [
+        "Fp1", "Fpz", "Fp2",
+        "AF7", "AF3", "AFz", "AF4", "AF8",
+        "F7", "F5", "F3", "F1", "Fz", "F2", "F4", "F6", "F8",
+        "FT7", "FC5", "FC3", "FC1", "FCz", "FC2", "FC4", "FC6", "FT8",
+        "T7", "C5", "C3", "C1", "Cz", "C2", "C4", "C6", "T8",
+        "TP7", "CP5", "CP3", "CP1", "CPz", "CP2", "CP4", "CP6", "TP8",
+        "P7", "P5", "P3", "P1", "Pz", "P2", "P4", "P6", "P8",
+        "PO7", "PO3", "POz", "PO4", "PO8",
+        "Oz"
+    ],
+    'BI2015a': [
+        "FP1", "FP2", "AFz",
+        "F7", "F3", "F4", "F8",
+        "FC5", "FC1", "FC2", "FC6",
+        "T7",
+        "C3", "Cz", "C4",
+        "T8",
+        "CP5", "CP1", "CP2", "CP6",
+        "P7", "P3", "Pz", "P4", "P8",
+        "PO7",
+        "O1", "Oz", "O2",
+        "PO8", "PO9", "PO10"
+    ],
+    'Lee2019_SSVEP': [
+        "Fp1", "Fp2",
+        "F7", "F3", "Fz", "F4", "F8",
+        "FC5", "FC1", "FC2", "FC6",
+        "T7", "C3", "Cz", "C4", "T8",
+        "TP9", "CP5", "CP1", "CP2", "CP6", "TP10",
+        "P7", "P3", "Pz", "P4", "P8",
+        "PO9", "O1", "Oz", "O2", "PO10",
+        "FC3", "FC4",
+        "C5", "C1", "C2", "C6",
+        "CP3", "CPz", "CP4",
+        "P1", "P2", "POz",
+        "FT9", "FTT9h", "TPP7h", "TP7", "TPP9h",
+        "FT10", "FTT10h", "TPP8h", "TP8", "TPP10h",
+        "F9", "F10", "AF7", "AF3", "AF4", "AF8",
+        "PO3", "PO4",
+    ],
+    'Lee2019_ERP': [
+        "Fp1", "Fp2",
+        "F7", "F3", "Fz", "F4", "F8",
+        "FC5", "FC1", "FC2", "FC6",
+        "T7", "C3", "Cz", "C4", "T8",
+        "TP9", "CP5", "CP1", "CP2", "CP6", "TP10",
+        "P7", "P3", "Pz", "P4", "P8",
+        "PO9", "O1", "Oz", "O2", "PO10",
+        "FC3", "FC4",
+        "C5", "C1", "C2", "C6",
+        "CP3", "CPz", "CP4",
+        "P1", "P2", "POz",
+        "FT9", "FTT9h", "TPP7h", "TP7", "TPP9h",
+        "FT10", "FTT10h", "TPP8h", "TP8", "TPP10h",
+        "F9", "F10", "AF7", "AF3", "AF4", "AF8",
+        "PO3", "PO4",
+    ],
+    'Lee2019_MI': [
+        "Fp1", "Fp2",
+        "F7", "F3", "Fz", "F4", "F8",
+        "FC5", "FC1", "FC2", "FC6",
+        "T7", "C3", "Cz", "C4", "T8",
+        "TP9", "CP5", "CP1", "CP2", "CP6", "TP10",
+        "P7", "P3", "Pz", "P4", "P8",
+        "PO9", "O1", "Oz", "O2", "PO10",
+        "FC3", "FC4",
+        "C5", "C1", "C2", "C6",
+        "CP3", "CPz", "CP4",
+        "P1", "P2", "POz",
+        "FT9", "FTT9h", "TPP7h", "TP7", "TPP9h",
+        "FT10", "FTT10h", "TPP8h", "TP8", "TPP10h",
+        "F9", "F10", "AF7", "AF3", "AF4", "AF8",
+        "PO3", "PO4",
     ],
 }
 
@@ -89,7 +197,7 @@ SFREQ_DICT = {
     'BNCI2014_002': 512,
     'Kalunga2016': 256,
     'Nakanishi2015': 256,
-    'BNCI2014008': 256,
+    'BNCI2014_008': 256,
     'Weibo2014': 200,
     'TUEG': 200,
     'Zhou2016': 250,
@@ -97,7 +205,13 @@ SFREQ_DICT = {
     'TUAB': 200,
     'PhysioNet-MI': 200,
     'FACED': 200,
+    'FACED26': 200,
     'BCIC2020-3': 200,
+    'Cho2017': 512,
+    'BI2015a': 512,
+    'Lee2019_SSVEP': 1000,
+    'Lee2019_ERP': 1000,
+    'Lee2019_MI': 1000,
 }
 
 DATA_DIR_DICT = {
@@ -107,6 +221,7 @@ DATA_DIR_DICT = {
     'TUEV': 'TUEV',
     'PhysioNet-MI': 'PhysioNetMI',
     'FACED': 'FACED/Processed_data',
+    'FACED26': 'FACED/Processed_data',
     'BCIC2020-3': 'BCIC2020-3',
 }
 
@@ -122,5 +237,6 @@ LMDB_DIR_DICT = {
     'TUEV': 'TUEV-lmdb',
     'PhysioNet-MI': 'PhysioNetMI-lmdb',
     'FACED': 'FACED-lmdb',
+    'FACED26': 'FACED26-lmdb',
     'BCIC2020-3': 'BCIC2020-3-lmdb',
 }

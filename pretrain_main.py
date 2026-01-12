@@ -2,14 +2,15 @@ import argparse
 import random
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ConcatDataset, Dataset, Sampler
 
 from datasets.pretraining_dataset import PretrainingDataset
-# from models.cbramod import CBraMod
-from models.mvm import CBraMod
+from datasets.moabb_dataset import MoabbPretrainingDataset  # 你上面写的 MoabbPretrainingDataset 放在这里
+from models.cbramod import CBraMod
 from pretrain_trainer import Trainer
 import os
-from utils.constants import ROOT_DIR, LMDB_DIR_DICT, SEQ_LEN_DICT, CHAN_NAME_DICT
+from utils.constants import ROOT_DIR, LMDB_DIR_DICT, SEQ_LEN_DICT, CHAN_NAME_DICT, MOABB_DATASET_LIST
+from utils.util import get_ch_coord
 
 os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4,5,6,7,8"
 
@@ -21,63 +22,278 @@ def setup_seed(seed):
     torch.backends.cudnn.deterministic = True
 
 
+def _parse_dataset_list(s: str):
+    if s is None:
+        return []
+    s = s.strip()
+    if not s:
+        return []
+    return [x.strip() for x in s.split(",") if x.strip()]
+
+
+class _TaggedDataset(Dataset):
+    """每条样本附带 ds_id。"""
+    def __init__(self, base_ds: Dataset, ds_id: int):
+        self.base_ds = base_ds
+        self.ds_id = int(ds_id)
+
+    def __len__(self):
+        return len(self.base_ds)
+
+    def __getitem__(self, idx):
+        x = self.base_ds[idx]
+        return x, self.ds_id
+
+
+class MultiDatasetBatchSampler(Sampler[list]):
+    def __init__(
+        self,
+        dataset_sizes: list[int],
+        batch_size: int,
+        drop_last: bool = True,
+        shuffle: bool = True,
+        seed: int = 42,
+    ):
+        self.dataset_sizes = [int(x) for x in dataset_sizes]
+        self.batch_size = int(batch_size)
+        self.drop_last = bool(drop_last)
+        self.shuffle = bool(shuffle)
+        self.seed = int(seed)
+
+        self.offsets = []
+        s = 0
+        for n in self.dataset_sizes:
+            self.offsets.append(s)
+            s += n
+        self.total_size = s
+        self.epoch = 0
+
+    def set_epoch(self, epoch: int):
+        self.epoch = int(epoch)
+
+    def __iter__(self):
+        g = torch.Generator()
+        g.manual_seed(self.seed + self.epoch)
+
+        all_batches = []
+        for ds_id, n in enumerate(self.dataset_sizes):
+            if self.shuffle:
+                local_indices = torch.randperm(n, generator=g).tolist()
+            else:
+                local_indices = list(range(n))
+
+            for i in range(0, n, self.batch_size):
+                chunk = local_indices[i:i + self.batch_size]
+                if len(chunk) < self.batch_size and self.drop_last:
+                    continue
+                offset = self.offsets[ds_id]
+                all_batches.append([offset + j for j in chunk])
+
+        if self.shuffle and len(all_batches) > 0:
+            perm = torch.randperm(len(all_batches), generator=g).tolist()
+            all_batches = [all_batches[i] for i in perm]
+
+        for b in all_batches:
+            yield b
+
+    def __len__(self):
+        total = 0
+        for n in self.dataset_sizes:
+            if self.drop_last:
+                total += n // self.batch_size
+            else:
+                total += (n + self.batch_size - 1) // self.batch_size
+        return total
+
+
 def main():
     parser = argparse.ArgumentParser(description='EEG Foundation Model')
-    parser.add_argument('--seed', type=int, default=42, help='random seed (default: 0)')
-    parser.add_argument('--cuda', type=int, default=3, help='cuda number (default: 1)')
-    parser.add_argument('--parallel', type=bool, default=False, help='parallel')
-    parser.add_argument('--epochs', type=int, default=40, help='number of epochs (default: 5)')
-    parser.add_argument('--batch_size', type=int, default=32, help='batch size for training (default: 32)')
-    parser.add_argument('--lr', type=float, default=5e-4, help='learning rate (default: 1e-3)')
-    parser.add_argument('--weight_decay', type=float, default=5e-2, help='weight_decay')
-    parser.add_argument('--clip_value', type=float, default=1, help='clip_value')
-    parser.add_argument('--lr_scheduler', type=str, default='CosineAnnealingLR',
-                        help='lr_scheduler: CosineAnnealingLR, ExponentialLR, StepLR, MultiStepLR, CyclicLR')
+    parser.add_argument('--seed', type=int, default=42)
+    parser.add_argument('--cuda', type=int, default=3)
+    parser.add_argument('--parallel', type=bool, default=False)
+    parser.add_argument('--epochs', type=int, default=200)
+    parser.add_argument('--batch_size', type=int, default=32)
+    parser.add_argument('--lr', type=float, default=5e-4)
+    parser.add_argument('--weight_decay', type=float, default=5e-2)
+    parser.add_argument('--clip_value', type=float, default=1)
+    parser.add_argument('--lr_scheduler', type=str, default='CosineAnnealingLR')
 
-    # parser.add_argument('--project_mode', type=str, default='cnn', help='project_mode')
-    parser.add_argument('--dropout', type=float, default=0.1, help='dropout')
-    parser.add_argument('--in_dim', type=int, default=200, help='in_dim')
-    parser.add_argument('--out_dim', type=int, default=200, help='out_dim')
-    parser.add_argument('--d_model', type=int, default=200, help='d_model')
-    parser.add_argument('--dim_feedforward', type=int, default=800, help='dim_feedforward')
-    parser.add_argument('--seq_len', type=int, default=30, help='seq_len')
-    parser.add_argument('--n_layer', type=int, default=12, help='n_layer')
-    parser.add_argument('--nhead', type=int, default=8, help='nhead')
-    parser.add_argument('--need_mask', type=bool, default=True, help='need_mask')
-    parser.add_argument('--mask_ratio', type=float, default=0.5, help='mask_ratio')
+    parser.add_argument('--dropout', type=float, default=0.1)
+    parser.add_argument('--in_dim', type=int, default=200)
+    parser.add_argument('--out_dim', type=int, default=200)
+    parser.add_argument('--d_model', type=int, default=200)
+    parser.add_argument('--dim_feedforward', type=int, default=800)
+    parser.add_argument('--seq_len', type=int, default=30)  # 默认值；真实 seq_len 会按 ds 切换
+    parser.add_argument('--n_layer', type=int, default=12)
+    parser.add_argument('--nhead', type=int, default=8)
+    parser.add_argument('--need_mask', type=bool, default=True)
+    parser.add_argument('--mask_ratio', type=float, default=0.5)
 
     parser.add_argument('--pretrain_dataset', type=str, default='TUEG')
-    # parser.add_argument('--dataset_dir', type=str, default='dataset_dir',
-    #                     help='dataset_dir')
-    parser.add_argument('--foundation_dir',   type=str,   default='pretrained_weights', help='foundation_dir')
+    parser.add_argument('--foundation_dir', type=str, default='pretrained_weights')
+
+    parser.add_argument('--drop_last', type=bool, default=True)
+    parser.add_argument('--shuffle', type=bool, default=True)
+
+    # 新增：MOABB 滑窗 overlap
+    parser.add_argument('--moabb_overlap', type=float, default=0.2)
+
+    parser.add_argument('--resume', type=str, default='', help='path to checkpoint to resume')
     params = parser.parse_args()
 
-    dataset_name = params.pretrain_dataset
-    params.dataset_dir = os.path.join(ROOT_DIR, 'lmdb', LMDB_DIR_DICT[dataset_name])
-    ch_names = CHAN_NAME_DICT[dataset_name]
-    seq_len = SEQ_LEN_DICT[dataset_name]
+    dataset_list = _parse_dataset_list(params.pretrain_dataset)
+    if len(dataset_list) == 0:
+        raise ValueError("Empty --pretrain_dataset. Use e.g. --pretrain_dataset TUEG or TUEG,CHBMIT")
 
-    print(params)
+    os.makedirs(params.foundation_dir, exist_ok=True)
     setup_seed(params.seed)
-    pretrained_dataset = PretrainingDataset(dataset_dir=params.dataset_dir)
-    print(len(pretrained_dataset))
-    data_loader = DataLoader(
-        pretrained_dataset,
+
+    # --------- 构造每个数据集的元信息（ch_names/seq_len/ch_coords）---------
+    params.dataset_list = dataset_list
+    params.num_datasets = len(dataset_list)
+    params.ds_ch_names = {}
+    params.ds_seq_len = {}
+    params.ds_ch_coords = {}
+
+    # --------- ConcatDataset：每条样本带 ds_id ----------
+    tagged_datasets = []
+    raw_datasets = []
+    dataset_sizes = []
+
+    for ds_id, dataset_name in enumerate(dataset_list):
+        is_moabb = dataset_name in MOABB_DATASET_LIST
+
+        # 1) 构造 base dataset
+        if is_moabb:
+            ds = MoabbPretrainingDataset(dataset_name=dataset_name, overlap=params.moabb_overlap)
+        else:
+            dataset_dir = os.path.join(ROOT_DIR, 'lmdb', LMDB_DIR_DICT[dataset_name])
+            ds = PretrainingDataset(dataset_dir=dataset_dir)
+
+        raw_datasets.append(ds)
+
+        # 2) 元信息：ch_names / seq_len
+        ch_names = CHAN_NAME_DICT[dataset_name]
+
+        sample0 = ds[0]
+        if isinstance(sample0, tuple):
+            sample0 = sample0[0]
+        # sample0 shape: (C, P, W)
+        seq_len = int(sample0.shape[1])   # P
+
+        params.ds_ch_names[ds_id] = ch_names
+        params.ds_seq_len[ds_id] = seq_len
+        params.ds_ch_coords[ds_id] = get_ch_coord(dataset_name)  # (C,3)
+
+        # 4) tagged dataset
+        tagged = _TaggedDataset(ds, ds_id=ds_id)
+        tagged_datasets.append(tagged)
+        dataset_sizes.append(len(tagged))
+
+    # 默认先指向 ds0；训练时每个 batch 会切换
+    params.ch_names = params.ds_ch_names[0]
+    params.seq_len = params.ds_seq_len[0]
+    params.ch_coords = params.ds_ch_coords[0]
+
+    train_dataset = tagged_datasets[0] if len(tagged_datasets) == 1 else ConcatDataset(tagged_datasets)
+
+    # --------- 关键：用 MultiDatasetBatchSampler 保证每批单一 ds ----------
+    batch_sampler = MultiDatasetBatchSampler(
+        dataset_sizes=dataset_sizes,
         batch_size=params.batch_size,
+        drop_last=params.drop_last,
+        shuffle=params.shuffle,
+        seed=params.seed,
+    )
+
+    data_loader = DataLoader(
+        train_dataset,
         num_workers=8,
-        shuffle=True,
+        batch_sampler=batch_sampler,
+        pin_memory=True,
     )
+
+    import textwrap
+    def _print_full_channels(dataset_name: str, ch_names: list[str], width: int = 120):
+        """
+        完整打印通道名（不省略），自动按 width 换行。
+        """
+        s = ", ".join(ch_names)
+        wrapped = textwrap.fill(
+            s,
+            width=width,
+            subsequent_indent=" " * 6,  # 让换行后的缩进更美观
+            break_long_words=False,
+            break_on_hyphens=False,
+        )
+        print(f"Channels ({dataset_name}) [{len(ch_names)}]:")
+        print("  " + wrapped)
+
+    print("============== Datasets Summary ==============")
+    # ---- 表格：不包含 channels，避免太长 ----
+    headers = ["ds_id", "dataset", "is_moabb", "samples", "n_channels", "seq_len(P)", "hours", "chan_hours"]
+    rows = []
+
+    total_samples = 0
+    total_seconds = 0
+    total_channel_seconds = 0
+    for ds_id, dataset_name in enumerate(dataset_list):
+        is_moabb = dataset_name in MOABB_DATASET_LIST
+        n_samples = dataset_sizes[ds_id]
+        ch_names = params.ds_ch_names[ds_id]
+        n_ch = len(ch_names)
+        seq_len = int(params.ds_seq_len[ds_id])
+        hours = n_samples * seq_len // 3600
+        chan_hours = n_samples * seq_len * n_ch // 3600
+
+        total_samples += n_samples
+        total_seconds += n_samples * seq_len
+        total_channel_seconds += n_samples * seq_len * n_ch
+        rows.append([ds_id, dataset_name, str(is_moabb), n_samples, n_ch, seq_len, hours, chan_hours])
+
+    # 计算列宽并打印（纯文本表格）
+    col_w = [len(h) for h in headers]
+    for r in rows:
+        for i, v in enumerate(r):
+            col_w[i] = max(col_w[i], len(str(v)))
+
+    def _fmt_row(r):
+        return " | ".join(str(v).ljust(col_w[i]) for i, v in enumerate(r))
+
+    print(_fmt_row(headers))
+    print("-+-".join("-" * w for w in col_w))
+    for r in rows:
+        print(_fmt_row(r))
+
+    print("-------------- Loader/Training ---------------")
+    print("Total datasets      :", len(dataset_list))
+    print("Total samples       :", total_samples)
+    print("Total batches/epoch :", len(batch_sampler))
+    print("Total hours :", total_seconds // 3600)
+    print("Total channel hours :", total_channel_seconds // 3600)
+
+    print("==============================================\n")
+
+    # ---- 通道：逐个 dataset 完整打印（不省略）----
+    print("============== Channels (Full) ===============")
+    for ds_id, dataset_name in enumerate(dataset_list):
+        ch_names = params.ds_ch_names[ds_id]
+        _print_full_channels(dataset_name, ch_names, width=120)
+        print("----------------------------------------------")
+    print("==============================================")
+
     model = CBraMod(
-        params.in_dim, params.out_dim, params.d_model, params.dim_feedforward, params.seq_len, params.n_layer,
-        params.nhead
+        params.in_dim, params.out_dim, params.d_model, params.dim_feedforward,
+        params.seq_len, params.n_layer, params.nhead,
     )
-    # # Model_B
-    # model = CBraMod(
-    #     len(ch_names), seq_len, ch_names=ch_names
-    # )
-    trainer = Trainer(params, data_loader, model)
-    trainer.train()
-    pretrained_dataset.db.close()
+
+    trainer = Trainer(params, data_loader, model, batch_sampler=batch_sampler)
+    trainer.train(resume_path=params.resume)
+
+    # close lmdb（MOABB 不需要 close）
+    for ds in raw_datasets:
+        if hasattr(ds, "db") and ds.db is not None:
+            ds.db.close()
 
 
 if __name__ == '__main__':

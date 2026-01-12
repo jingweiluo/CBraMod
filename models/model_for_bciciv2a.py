@@ -48,9 +48,8 @@ class Model(nn.Module):
                 nn.Linear(200, param.num_of_classes),
             )
 
-    def forward(self, x):
-        # x = x / 100
+    def forward(self, x, ch_coords=None):
         bz, ch_num, seq_len, patch_size = x.shape
-        feats = self.backbone(x)
+        feats = self.backbone(x, ch_coords=ch_coords)
         out = self.classifier(feats)
         return out

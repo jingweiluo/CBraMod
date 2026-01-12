@@ -1,182 +1,389 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from timm.models.vision_transformer import Block
+import torch.fft
 
-# ========= 工程路径 & 数据加载 =========
-import os
-import sys
-current_file_path = os.path.abspath(__file__)
-parent_parent_dir = os.path.dirname(os.path.dirname(current_file_path))
-sys.path.append(parent_parent_dir)
-from utils.constants import ROOT_DIR, DATA_DIR_DICT, LMDB_DIR_DICT
-from utils.util import random_masking, get_1d_sincos_pos_embed
-
-class CBraMod(nn.Module):
-    def __init__(self, chan_num=19, seq_len=30, in_dim=200, out_dim=200, d_model=800, mlp_ratio=4., n_layer=24,
-                    nhead=16, decoder_embed_dim=400, decoder_depth=8, decoder_num_heads=16):
-        super().__init__()
-
-        # ==================================================================== #
-        self.encoder_embed = nn.Linear(in_dim, d_model, bias=True)
-        self.pos_embed = nn.Parameter(torch.zeros(1, chan_num*seq_len + 1, d_model), requires_grad=False)
-        self.cls_token = nn.Parameter(torch.zeros(d_model))
-        self.blocks = nn.ModuleList([
-            Block(d_model, nhead, mlp_ratio, qkv_bias=True, norm_layer=nn.LayerNorm)
-            for i in range(n_layer)])
-        self.norm = nn.LayerNorm(d_model)
-
-        self.mask_token = nn.Parameter(torch.zeros(1, 1, decoder_embed_dim))
-        self.decoder_embed = nn.Linear(d_model, decoder_embed_dim, bias=True)
-        self.decoder_pos_embed = nn.Parameter(torch.zeros(1, chan_num*seq_len + 1, decoder_embed_dim), requires_grad=False)
-        self.decoder_norm = nn.LayerNorm(decoder_embed_dim)
-        self.decoder_blocks = nn.ModuleList([
-            Block(decoder_embed_dim, decoder_num_heads, mlp_ratio, qkv_bias=True, norm_layer=nn.LayerNorm)
-            for i in range(decoder_depth)])
-        self.decoder_pred = nn.Linear(decoder_embed_dim, in_dim, bias=True)
-        self.initialize_weights()
-        # ==================================================================== #
-
-    # ==================================================================== #
-    # WeightInit
-    # ==================================================================== #
-    def initialize_weights(self):
-        # initialization
-        # initialize (and freeze) pos_embed by sin-cos embedding
-        pos_embed = get_1d_sincos_pos_embed(self.pos_embed.shape[2], self.pos_embed.shape[1], device=self.pos_embed.device)
-        self.pos_embed.data.copy_(pos_embed.float().unsqueeze(0))
-
-        decoder_pos_embed = get_1d_sincos_pos_embed(self.decoder_pos_embed.shape[2], self.decoder_pos_embed.shape[1], device=self.decoder_pos_embed.device)
-        self.decoder_pos_embed.data.copy_(decoder_pos_embed.float().unsqueeze(0))
-
-        # # initialize patch_embed like nn.Linear (instead of nn.Conv2d)
-        # w = self.patch_embed.proj.weight.data
-        # torch.nn.init.xavier_uniform_(w.view([w.shape[0], -1]))
-
-        # timm's trunc_normal_(std=.02) is effectively normal_(std=0.02) as cutoff is too big (2.)
-        torch.nn.init.normal_(self.cls_token, std=.02)
-        torch.nn.init.normal_(self.mask_token, std=.02)
-
-        # initialize nn.Linear and nn.LayerNorm
-        self.apply(self._init_weights)
-
-    def _init_weights(self, m):
-        if isinstance(m, nn.Linear):
-            # we use xavier_uniform following official JAX ViT:
-            torch.nn.init.xavier_uniform_(m.weight)
-            if isinstance(m, nn.Linear) and m.bias is not None:
-                nn.init.constant_(m.bias, 0)
-        elif isinstance(m, nn.LayerNorm):
-            nn.init.constant_(m.bias, 0)
-            nn.init.constant_(m.weight, 1.0)
+from models.criss_cross_transformer import TransformerEncoderLayer, TransformerEncoder
+from utils.util import build_4d_sincos_pe, get_ch_coord
 
 
+# ============================================================
+# InfoNCE / NT-Xent
+# ============================================================
+def _l2_normalize(x, dim=-1, eps=1e-8):
+    return x / (x.norm(dim=dim, keepdim=True).clamp_min(eps))
 
 
+def info_nce(z1: torch.Tensor, z2: torch.Tensor, temperature: float = 0.2) -> torch.Tensor:
+    """
+    Standard NT-Xent (SimCLR-style) for paired samples.
+    z1, z2: (N, D) where i-th row in z1 matches i-th row in z2.
+    """
+    assert z1.shape == z2.shape and z1.dim() == 2, "z1/z2 must be (N,D) and same shape"
+    N, _ = z1.shape
 
-    # ==================================================================== #
-    # Encoder
-    # ==================================================================== #
-    def forward_encoder(self, x, mask_ratio):
-        # 1,2位置可考虑互换
+    z1 = _l2_normalize(z1, dim=-1)
+    z2 = _l2_normalize(z2, dim=-1)
 
-        # 1 添加各种编码
-        # x = x + self.chan_pos_embed
-        # x = x + self.pach_pos_embed # B,C,P,W
+    z = torch.cat([z1, z2], dim=0)  # (2N, D)
+    sim = (z @ z.t()) / temperature  # (2N, 2N)
 
-        # 2 embed & flatten
-        flat_x = self.patch_embed(x) # ViT中作用是对原始img做Conv2d，得到切分的patch，并flatten，最后transpose，得到B,N,D
+    # mask self-similarity
+    diag = torch.eye(2 * N, device=z.device, dtype=torch.bool)
+    sim = sim.masked_fill(diag, float("-inf"))
 
-        # 3 add seq-level pos-embed
-        flat_x = flat_x + self.pos_embed[:, 1:, :]
+    # positives: i <-> i+N
+    pos_idx = torch.arange(N, device=z.device)
+    targets = torch.cat([pos_idx + N, pos_idx], dim=0)  # (2N,)
 
-        # 4 masking: length -> length * mask_ratio
-        visible_x, mask, ids_restore = random_masking(flat_x, mask_ratio)
+    loss = F.cross_entropy(sim, targets)
+    return loss
 
-        # 5 append cls token
-        cls_token = self.cls_token + self.pos_embed[:, :1, :]
-        cls_tokens = cls_token.expand(visible_x.shape[0], -1, -1)
-        visible_x = torch.cat((cls_tokens, visible_x), dim=1) # B, (c*p)*mask_ratio+1, d_model
 
-        # 5 apply Transformer blocks
-        for blk in self.blocks:
-            visible_x = blk(visible_x)
-
-        visible_x = self.norm(visible_x)
-        return visible_x, mask, ids_restore
-
-    def patch_embed(self, x):
-        """
-        这里也可以改变embed_dim
-        """
-        b, c, p, w = x.shape
-        x = self.encoder_embed(x)
-        return x.contiguous().view(b, c*p, -1)
-
-    # ==================================================================== #
-    # Decoder
-    # ==================================================================== #
-    def forward_decoder(self, x, ids_restore):
-        x = self.decoder_embed(x) # 简单线性层，可考虑去掉
-
-        # append mask tokens to sequence
-        mask_tokens = self.mask_token.repeat(x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], 1)
-        x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
-        x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
-        x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
-
-        x = x + self.decoder_pos_embed
-
-        for blk in self.decoder_blocks:
-            x = blk(x)
-
-        x = self.decoder_norm(x)
-
-        # predictor projection
-        x = self.decoder_pred(x)
-
-        # remove cls token
-        x = x[:, 1:, :]
-
+# ============================================================
+# Augmentations
+# ============================================================
+def patch_time_masking(
+    x: torch.Tensor,
+    mask_ratio: float = 0.2,
+    apply_prob: float = 1.0,
+) -> torch.Tensor:
+    """
+    Patch-level time masking.
+    x: (B, C, P, W)
+    Randomly masks a contiguous segment along W in each (B,C,P) patch.
+    """
+    if mask_ratio <= 0:
         return x
 
-    def forward_loss(self, x, pred, mask):
-        b, c, p, w = x.shape
-        x = x.contiguous().view(b, c*p, w)
-        loss = (pred - x)**2
-        loss = loss.mean(dim=-1) # [b, c*p] per patch loss
-        loss = (loss * mask).sum() / mask.sum() # mean loss on removed patches
-        return loss
+    B, C, P, W = x.shape
+    L = max(1, int(round(W * mask_ratio)))
+    L = min(L, W)
 
-    def forward(self, x, mask_ratio=0):
-        latent, mask, ids_restore = self.forward_encoder(x, mask_ratio)
-        pred = self.forward_decoder(latent, ids_restore) # B (C P) W
-        loss = self.forward_loss(x, pred, mask)
-        return loss, pred, mask
+    out = x.clone()
+
+    # Decide which patches to apply masking
+    if apply_prob < 1.0:
+        apply_mask = (torch.rand(B, C, P, device=x.device) < apply_prob)
+    else:
+        apply_mask = torch.ones(B, C, P, device=x.device, dtype=torch.bool)
+
+    # random start indices
+    max_s = max(0, W - L)
+    starts = torch.randint(0, max_s + 1, size=(B, C, P), device=x.device)
+
+    # build boolean mask along W
+    ar = torch.arange(W, device=x.device).view(1, 1, 1, W)  # (1,1,1,W)
+    s = starts.unsqueeze(-1)                                 # (B,C,P,1)
+    time_mask = (ar >= s) & (ar < (s + L))                   # (B,C,P,W)
+    time_mask = time_mask & apply_mask.unsqueeze(-1)         # only applied patches
+
+    out = out.masked_fill(time_mask, 0.0)
+    return out
 
 
+def mild_band_stop(
+    x: torch.Tensor,
+    atten: float = 0.7,
+    band_bins: int = 6,
+) -> torch.Tensor:
+    """
+    Sequence-level mild band-stop on the FULL sequence per channel.
+    - Concatenate patches: T = P*W
+    - rFFT along T
+    - choose random center bin, attenuate a narrow band (multiplicative)
+    - iFFT back
+    x: (B, C, P, W)
+    """
+    assert 0.0 <= atten <= 1.0, "atten should be in [0,1], where 1 means full suppression, 0 means no change"
+    B, C, P, W = x.shape
+    T = P * W
+
+    xt = x.reshape(B, C, T)  # (B,C,T)
+
+    # rFFT
+    X = torch.fft.rfft(xt, dim=-1, norm="forward")  # (B,C,F)
+    Fbins = X.shape[-1]
+    if Fbins <= 2:
+        return x  # too short to band-stop meaningfully
+
+    # pick random center (avoid DC bin 0)
+    # bandwidth = band_bins (half on each side)
+    half = max(1, band_bins // 2)
+    center = torch.randint(1 + half, max(2 + half, Fbins - half), (B, C), device=x.device)
+
+    # build mask over frequency bins
+    f_idx = torch.arange(Fbins, device=x.device).view(1, 1, Fbins)  # (1,1,F)
+    c = center.unsqueeze(-1)                                         # (B,C,1)
+    band = (f_idx >= (c - half)) & (f_idx <= (c + half))             # (B,C,F)
+
+    # attenuate (mild): multiply by (1-atten) in that band
+    scale = torch.ones((B, C, Fbins), device=x.device, dtype=X.dtype)
+    scale = scale.masked_fill(band, (1.0 - atten))
+    X2 = X * scale
+
+    # iFFT back
+    xt2 = torch.fft.irfft(X2, n=T, dim=-1, norm="forward")  # (B,C,T)
+    return xt2.reshape(B, C, P, W)
 
 
-
-
-if __name__ == '__main__':
-
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = CBraMod(
-        chan_num=19,
-        seq_len=30,
+# ============================================================
+# Main Model
+# ============================================================
+class CBraMod(nn.Module):
+    def __init__(
+        self,
         in_dim=200,
         out_dim=200,
         d_model=200,
-        mlp_ratio=4.,
+        dim_feedforward=800,
+        seq_len=30,
         n_layer=12,
         nhead=8,
-        decoder_embed_dim=512,
-        decoder_depth=8,
-        decoder_num_heads=16
+        ch_names=None,
+    ):
+        super().__init__()
+        self.patch_embedding = PatchEmbedding(in_dim, out_dim, d_model, seq_len, ch_names=ch_names)
+
+        encoder_layer = TransformerEncoderLayer(
+            d_model=d_model,
+            nhead=nhead,
+            dim_feedforward=dim_feedforward,
+            batch_first=True,
+            norm_first=True,
+            activation=F.gelu,
+        )
+        self.encoder = TransformerEncoder(encoder_layer, num_layers=n_layer, enable_nested_tensor=False)
+
+        self.proj_out = nn.Sequential(
+            nn.Linear(d_model, out_dim),
+        )
+
+        # ----------------------------
+        # Contrastive learning (minimal additions)
+        # ----------------------------
+        self.enable_contrastive = True  # 训练时启用；推理可关
+        self.temperature = 0.2
+        self.lambda_patch = 0.5
+        self.lambda_global = 0.5
+
+        # Patch-level projection head
+        self.proj_patch = nn.Sequential(
+            nn.Linear(d_model, 128),
+            nn.GELU(),
+            nn.Linear(128, 128),
+        )
+
+        # Global-level projection head
+        self.proj_global = nn.Sequential(
+            nn.Linear(d_model, 128),
+            nn.GELU(),
+            nn.Linear(128, 128),
+        )
+
+        # Expose last contrastive loss without changing forward signature
+        self.contrastive_loss = None
+
+        self.apply(_weights_init)
+
+    def _to_bcpd(self, feats: torch.Tensor, C: int, P: int) -> torch.Tensor:
+        """
+        Make feats into (B,C,P,D) for pooling.
+        Accepts:
+          - (B,C,P,D): return as is
+          - (B, C*P, D): reshape
+        """
+        if feats.dim() == 4:
+            return feats
+        if feats.dim() == 3:
+            B, L, D = feats.shape
+            assert L == C * P, f"Expected L==C*P, got L={L}, C*P={C*P}"
+            return feats.reshape(B, C, P, D)
+        raise RuntimeError(f"Unsupported feats shape: {feats.shape}")
+
+    def forward(self, x, mask=None):
+        """
+        x: (B,C,P,W)
+        return: out (same as before)
+        Side-effect:
+          self.contrastive_loss is set during training when enable_contrastive=True
+        """
+        # ---------- main path ----------
+        patch_emb = self.patch_embedding(x, mask)
+        feats = self.encoder(patch_emb)
+        out = self.proj_out(feats)
+
+        # ---------- contrastive (minimal interface change: store loss) ----------
+        self.contrastive_loss = None
+        if self.training and self.enable_contrastive:
+            B, C, P, W = x.shape
+
+            # Patch-level: time masking (two views)
+            x_p1 = patch_time_masking(x, mask_ratio=0.2, apply_prob=1.0)
+            x_p2 = patch_time_masking(x, mask_ratio=0.2, apply_prob=1.0)
+
+            pe1 = self.patch_embedding(x_p1, mask=None)  # keep minimal: contrastive uses pure augment
+            pe2 = self.patch_embedding(x_p2, mask=None)
+
+            f1 = self.encoder(pe1)
+            f2 = self.encoder(pe2)
+
+            f1 = self._to_bcpd(f1, C=C, P=P)  # (B,C,P,D)
+            f2 = self._to_bcpd(f2, C=C, P=P)
+
+            # patch-level pooled over channels -> (B,P,D)
+            p1 = f1.mean(dim=1)
+            p2 = f2.mean(dim=1)
+
+            # project -> (B*P, d_proj)
+            z_p1 = self.proj_patch(p1.reshape(B * P, -1))
+            z_p2 = self.proj_patch(p2.reshape(B * P, -1))
+            loss_patch = info_nce(z_p1, z_p2, temperature=self.temperature)
+
+            # Sequence-level: mild band-stop (two views)
+            x_s1 = mild_band_stop(x, atten=0.7, band_bins=6)
+            x_s2 = mild_band_stop(x, atten=0.7, band_bins=6)
+
+            se1 = self.patch_embedding(x_s1, mask=None)
+            se2 = self.patch_embedding(x_s2, mask=None)
+
+            g1 = self.encoder(se1)
+            g2 = self.encoder(se2)
+
+            g1 = self._to_bcpd(g1, C=C, P=P)  # (B,C,P,D)
+            g2 = self._to_bcpd(g2, C=C, P=P)
+
+            # global pooled over C,P -> (B,D)
+            gg1 = g1.mean(dim=(1, 2))
+            gg2 = g2.mean(dim=(1, 2))
+
+            z_g1 = self.proj_global(gg1)
+            z_g2 = self.proj_global(gg2)
+            loss_global = info_nce(z_g1, z_g2, temperature=self.temperature)
+
+            self.contrastive_loss = self.lambda_patch * loss_patch + self.lambda_global * loss_global
+
+        return out
+
+
+class PatchEmbedding(nn.Module):
+    def __init__(self, in_dim, out_dim, d_model, seq_len, ch_names=None):
+        super().__init__()
+        self.d_model = d_model
+
+        # (unused in current path; kept to preserve your code)
+        self.positional_encoding = nn.Sequential(
+            nn.Conv2d(
+                in_channels=d_model,
+                out_channels=d_model,
+                kernel_size=(19, 7),
+                stride=(1, 1),
+                padding=(9, 3),
+                groups=d_model,
+            ),
+        )
+
+        # Model B: fixed 4D PE
+        self.ch_names = ch_names
+        ch_pos = get_ch_coord()
+        xyz_list = []
+        for name in self.ch_names:
+            if name in ch_pos:
+                v = ch_pos[name]
+                xyz_list.append([float(v[0]), float(v[1]), float(v[2])])
+            else:
+                xyz_list.append([0.0, 0.0, 0.0])
+        self.register_buffer("chan_xyz", torch.tensor(xyz_list, dtype=torch.float32), persistent=True)  # (C,3)
+        self.alpha_4d_enc = nn.Parameter(torch.tensor(0.5))
+
+        self.mask_encoding = nn.Parameter(torch.zeros(in_dim), requires_grad=False)
+
+        self.proj_in = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=25, kernel_size=(1, 49), stride=(1, 25), padding=(0, 24)),
+            nn.GroupNorm(5, 25),
+            nn.GELU(),
+
+            nn.Conv2d(in_channels=25, out_channels=25, kernel_size=(1, 3), stride=(1, 1), padding=(0, 1)),
+            nn.GroupNorm(5, 25),
+            nn.GELU(),
+
+            nn.Conv2d(in_channels=25, out_channels=25, kernel_size=(1, 3), stride=(1, 1), padding=(0, 1)),
+            nn.GroupNorm(5, 25),
+            nn.GELU(),
+        )
+
+        self.spectral_proj = nn.Sequential(
+            nn.Linear(101, d_model),
+            nn.Dropout(0.1),
+        )
+
+    def forward(self, x, mask=None):
+        bz, ch_num, patch_num, patch_size = x.shape
+
+        if mask is None:
+            mask_x = x
+        else:
+            mask_x = x.clone()
+            mask_x[mask == 1] = self.mask_encoding
+
+        # time-domain conv
+        mask_x = mask_x.contiguous().view(bz, 1, ch_num * patch_num, patch_size)
+        patch_emb = self.proj_in(mask_x)
+        patch_emb = patch_emb.permute(0, 2, 1, 3).contiguous().view(bz, ch_num, patch_num, self.d_model)
+
+        # spectral magnitude
+        mask_x2 = mask_x.contiguous().view(bz * ch_num * patch_num, patch_size)
+        spectral = torch.fft.rfft(mask_x2, dim=-1, norm="forward")
+        spectral = torch.abs(spectral).contiguous().view(bz, ch_num, patch_num, 101)
+        spectral_emb = self.spectral_proj(spectral)
+
+        patch_emb = patch_emb + spectral_emb
+
+        # 4D fixed PE (x,y,z,t)
+        pe_4d = build_4d_sincos_pe(
+            xyz=self.chan_xyz.to(device=x.device, dtype=x.dtype),  # (C,3)
+            P=patch_num,
+            dim=self.d_model,
+            base=10000.0,
+            t_norm=True,
+        ).to(dtype=x.dtype, device=x.device)  # (1,C,P,D)
+
+        patch_emb = patch_emb + self.alpha_4d_enc * pe_4d
+        return patch_emb
+
+
+def _weights_init(m):
+    if isinstance(m, nn.Linear):
+        nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+    if isinstance(m, nn.Conv1d):
+        nn.init.kaiming_normal_(m.weight, mode="fan_out", nonlinearity="relu")
+    elif isinstance(m, nn.BatchNorm1d):
+        nn.init.constant_(m.weight, 1)
+        nn.init.constant_(m.bias, 0)
+
+
+if __name__ == "__main__":
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+    # 你实际运行时应传入 ch_names；这里给一个占位示例
+    ch_names = ["Fp1"] * 16
+
+    model = CBraMod(
+        in_dim=200,
+        out_dim=200,
+        d_model=200,
+        dim_feedforward=800,
+        seq_len=30,
+        n_layer=12,
+        nhead=8,
+        ch_names=ch_names,
     ).to(device)
-    # model.load_state_dict(torch.load('pretrained_weights/pretrained_weights.pth',
-    #                                  map_location=device))
-    a = torch.randn((8, 19, 30, 200)).cuda()
-    b = model(a, 0)
-    print(a.shape, b[0])
+
+    # model.load_state_dict(torch.load('pretrained_weights/pretrained_weights.pth', map_location=device))
+
+    a = torch.randn((8, 16, 10, 200), device=device)
+    b = model(a)
+
+    print("out:", a.shape, "->", b.shape)
+    if model.contrastive_loss is not None:
+        print("contrastive_loss:", float(model.contrastive_loss.detach().cpu()))

@@ -19,7 +19,7 @@ class Trainer(object):
         self.test_eval = Evaluator(params, self.data_loader['test'])
 
         self.model = model.cuda()
-        if self.params.downstream_dataset in ['FACED', 'SEED-V', 'PhysioNet-MI', 'ISRUC', 'BCIC2020-3', 'TUEV', 'BCIC-IV-2a']:
+        if self.params.downstream_dataset in ['FACED', 'FACED26', 'SEED-V', 'PhysioNet-MI', 'ISRUC', 'BCIC2020-3', 'TUEV', 'BCIC-IV-2a']:
             self.criterion = CrossEntropyLoss(label_smoothing=self.params.label_smoothing).cuda()
         elif self.params.downstream_dataset in ['SHU-MI', 'CHB-MIT', 'Mumtaz2016', 'MentalArithmetic', 'TUAB']:
             self.criterion = BCEWithLogitsLoss().cuda()
@@ -79,7 +79,13 @@ class Trainer(object):
                 self.optimizer.zero_grad()
                 x = x.cuda()
                 y = y.cuda()
-                pred = self.model(x)
+                # pred = self.model(x)
+                # ====== input additional ch_coords =======
+                coords = getattr(self.params, "ch_coords", None)
+                if coords is not None:
+                    coords = coords.to(x.device)
+                pred = self.model(x, ch_coords=coords)
+                # ==========================================
                 if self.params.downstream_dataset == 'ISRUC':
                     loss = self.criterion(pred.transpose(1, 2), y)
                 else:
@@ -226,7 +232,14 @@ class Trainer(object):
                 self.optimizer.zero_grad()
                 x = x.cuda()
                 y = y.cuda()
-                pred = self.model(x)
+                # pred = self.model(x)
+                # ====== input additional ch_coords =======
+                coords = getattr(self.params, "ch_coords", None)
+                if coords is not None:
+                    coords = coords.to(x.device)
+                pred = self.model(x, ch_coords=coords)
+                # ==========================================
+
                 loss = self.criterion(pred, y)
 
                 loss.backward()

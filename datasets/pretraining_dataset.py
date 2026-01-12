@@ -28,7 +28,7 @@ class PretrainingDataset(Dataset):
 
         patch = to_tensor(patch)
         # print(patch.shape)
-        return patch
+        return patch/100
 
 
 
