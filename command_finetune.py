@@ -1,25 +1,7 @@
 import subprocess
 import time
 
-commands = [
-    # "export NCCL_DEBUG=INFO",
-    # "export TORCH_DISTRIBUTED_DEBUG=DETAIL",
-    # "export NCCL_ASYNC_ERROR_HANDLING=1",
-
-    # f"CUDA_VISIBLE_DEVICES=3 \
-    # torchrun --nproc_per_node=2 \
-
-    # f"CUDA_VISIBLE_DEVICES=5 \
-    # python pretrain_main.py \
-    # --pretrain_dataset Chisco,TUEG,Lee2019_SSVEP,Lee2019_MI,BI2015a,Cho2017,Zhou2016,AlexMI,BNCI2014_008,Kalunga2016,BNCI2015_001,Nakanishi2015 \
-    # --epochs 500 --seed 3 \
-    # --mask_ratio 0.5 \
-    # --train_mode recon \
-    # --use_channel_subset \
-    # --lambda_codebook 0 \
-    # --foundation_dir pretrained_weights_recon_3_6 \
-    # --batch_size 16",
-]
+commands = []
 
 downstream_tasks = [
     "FACED",
