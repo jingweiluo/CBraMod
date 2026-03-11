@@ -102,6 +102,7 @@ class RotaryMultiheadAttention(nn.Module):
         dropout: float = 0.0,
         bias: bool = True,
         rope_base: float = 10000.0,
+        is_causal: bool = False,
     ):
         super().__init__()
         assert embed_dim % num_heads == 0, "embed_dim must be divisible by num_heads"
@@ -114,6 +115,7 @@ class RotaryMultiheadAttention(nn.Module):
         self.out_proj = nn.Linear(embed_dim, embed_dim, bias=bias)
         self.dropout = dropout
         self.rope_base = rope_base
+        self.is_causal = is_causal
 
     def forward(
         self,
@@ -167,7 +169,7 @@ class RotaryMultiheadAttention(nn.Module):
             q, k, v,
             attn_mask=attn_bias,
             dropout_p=self.dropout if self.training else 0.0,
-            is_causal=False
+            is_causal=self.is_causal
         )  # (B,nhead,L,head_dim)
 
         out = out.transpose(1, 2).contiguous().view(B, L, E)  # (B,L,E)
@@ -230,8 +232,11 @@ class TransformerEncoderLayer(nn.Module):
             embed_dim=d_model, num_heads=nhead // 2, dropout=dropout, bias=bias
         )
         self.self_attn_t = RotaryMultiheadAttention(
-            embed_dim=d_model, num_heads=nhead // 2, dropout=dropout, bias=bias
+            embed_dim=d_model, num_heads=nhead // 2, dropout=dropout, bias=bias, is_causal=False,
         )
+        # self.self_attn_t = RotaryMultiheadAttention(
+        #     embed_dim=d_model, num_heads=nhead // 2, dropout=dropout, bias=bias, is_causal=True,
+        # )
 
         # ---- RoPE configs (no required args) ----
         self.rope_base = 10000.0
@@ -345,6 +350,13 @@ class TransformerEncoderLayer(nn.Module):
             rope_cos_sin=rope_t,
             need_weights=False
         )
+        # xt, _ = self.self_attn_t(
+        #     xt_in,
+        #     attn_mask=None,
+        #     key_padding_mask=key_padding_mask,
+        #     rope_cos_sin=rope_t,
+        #     need_weights=False
+        # )
         xt = xt.contiguous().view(bz, ch_num, patch_num, d_model)
 
         # ---------------------------

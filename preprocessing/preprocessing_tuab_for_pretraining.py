@@ -53,21 +53,6 @@ def iter_files(rootDir):
                 file_path_list.append(file_name)
     return file_path_list
 
-# def iter_files(rootDir, max_folder=150):
-#     file_path_list = []
-#     for root, dirs, files in os.walk(rootDir):
-#         # root == /data1/.../edf 时，dirs 就是 ['001', '002', ..., '150']
-#         if root == rootDir:
-#             # 只保留 001–050
-#             dirs[:] = [
-#                 d for d in dirs
-#                 if d.isdigit() and 0 <= int(d) <= max_folder
-#             ]
-#         for file in files:
-#             if file.lower().endswith(".edf"):
-#                 file_path_list.append(os.path.join(root, file))
-#     return file_path_list
-
 def preprocessing_recording(file_path, file_key_list: list, db: lmdb.open):
     raw = mne.io.read_raw_edf(file_path, preload=True)
     if '02_tcp_le' in file_path:
@@ -117,12 +102,12 @@ def preprocessing_recording(file_path, file_key_list: list, db: lmdb.open):
 
 if __name__ == '__main__':
     setup_seed(1)
-    file_path_list = iter_files('/data1/hust_bciml_eegdata/NEDC/v2.0.1/edf/')
+    file_path_list = iter_files('/data1/hust_bciml_eegdata/TUAB/')
 
     file_path_list = sorted(file_path_list)
     random.shuffle(file_path_list)
     # print(file_path_list)
-    db = lmdb.open('/data1/hust_bciml_eegdata/lmdb/TUEG_all-lmdb', map_size=1500 * 1024**3)
+    db = lmdb.open('/data1/hust_bciml_eegdata/lmdb/TUAB-lmdb', map_size=1649267441664)
     file_key_list = []
     for file_path in tqdm(file_path_list):
         preprocessing_recording(file_path, file_key_list, db)

@@ -228,7 +228,7 @@ def get_ch_pos():
     montage = mne.channels.make_standard_montage(montage_name)
     ch_pos = montage.get_positions().get("ch_pos", {})
     ch_pos_upper = {k.upper(): v for k, v in ch_pos.items()}
-    print(ch_pos_upper)
+    # print(ch_pos_upper)
     return ch_pos_upper
 
 def get_ch_coord(dataset_name):

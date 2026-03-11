@@ -4,11 +4,11 @@ import torch.nn.functional as F
 
 # from models.criss_cross_transformer import TransformerEncoderLayer, TransformerEncoder
 # from models.criss_cross_transformer_rope import TransformerEncoderLayer, TransformerEncoder
-from models.criss_cross_transformer_cord import TransformerEncoderLayer, TransformerEncoder
-
+# from models.criss_cross_transformer_cord import TransformerEncoderLayer, TransformerEncoder
+from models.linear_cord import TransformerEncoderLayer, TransformerEncoder
 
 from utils.util import build_4d_fourier_pe, get_ch_pos, get_2d_sincos_pe
-
+from models.gv_quantizer_4d import GumbelVectorQuantizer
 
 class CBraMod(nn.Module):
     def __init__(self, in_dim=200, out_dim=200, d_model=200, dim_feedforward=800, seq_len=30, n_layer=12,
@@ -27,14 +27,72 @@ class CBraMod(nn.Module):
             # nn.GELU(),
             nn.Linear(d_model, out_dim),
         )
+        self.quantizer = GumbelVectorQuantizer(
+            dim=d_model,
+            num_vars=50,
+            temp=(2.0, 0.3, 0.999987), # (2.0, 0.5, 0.999995)
+            groups=4,
+            combine_groups=False,
+            vq_dim=d_model,
+            weight_proj_depth=2,
+            weight_proj_factor=2,
+        )
+        self.final_proj = nn.Linear(d_model, d_model)
+        # 用来mask patch embed
+        self.patch_embed_mask_encoding = nn.Parameter(torch.zeros(d_model), requires_grad=True)
+
+
         self.apply(_weights_init)
 
+    # def get_context_and_quantized(self, x, mask, ch_coords):
+    #     """
+    #     x: (B,C,P,W)
+    #     mask: (B,C,P) 0/1
+    #     return:
+    #       feats_ctx: (B,C,P,D)  encoder output from masked input
+    #       feats_q  : (B,C,P,D)  quantized targets from unmasked patch embeddings
+    #     """
+    #     # 1) patch embedding WITHOUT masking for quantizer targets (wav2vec2: do not mask inputs to quantizer)
+    #     patch_embed_unmasked = self.patch_embedding(x, mask=None)  # (B,C,P,D)
+    #     q_out = self.quantizer(patch_embed_unmasked, produce_targets=False)
+
+    #     # 2) patch embedding WITH masking for context network
+    #     if mask is None:
+    #         patch_embed_masked = patch_embed_unmasked
+    #     else:
+    #         patch_embed_masked = patch_embed_unmasked.clone()
+    #         patch_embed_masked[mask == 1] = self.patch_embed_mask_encoding
+    #     feats_ctx = self.encoder(patch_embed_masked, coords=ch_coords)  # (B,C,P,D)
+
+    #     # 3) optional projection on context side (wav2vec2: final_proj)
+    #     feats_ctx = self.final_proj(feats_ctx)
+
+    #     return feats_ctx, q_out
+
+    # def forward(self, x, mask=None, ch_coords=None):
+    #     patch_emb = self.patch_embedding(x, mask)
+    #     feats = self.encoder(patch_emb, coords=ch_coords)
+    #     out = self.proj_out(feats)
+    #     return out
+
     def forward(self, x, mask=None, ch_coords=None):
-        patch_emb = self.patch_embedding(x, mask)
-        # feats = self.encoder(patch_emb, coords=ch_coords)
-        feats = self.encoder(patch_emb)
-        out = self.proj_out(feats)
-        return out
+        patch_embed_unmasked = self.patch_embedding(x, mask=None)  # (B,C,P,D)
+
+        if mask is None:
+            # ===== 下游：只要特征 =====
+            feats_ctx = self.encoder(patch_embed_unmasked, coords=ch_coords)  # (B,C,P,D)
+            return feats_ctx
+
+        # ===== 预训练：需要 recon + contra + quantizer =====
+        q_out = self.quantizer(patch_embed_unmasked, produce_targets=False)
+
+        patch_embed_masked = patch_embed_unmasked.clone()
+        patch_embed_masked[mask == 1] = self.patch_embed_mask_encoding
+
+        feats_ctx = self.encoder(patch_embed_masked, coords=ch_coords)  # (B,C,P,D)
+        recon_out = self.proj_out(feats_ctx)
+        contra_out = self.final_proj(feats_ctx)
+        return recon_out, contra_out, q_out, patch_embed_unmasked
 
 class PatchEmbedding(nn.Module):
     def __init__(self, in_dim, out_dim, d_model, seq_len):
@@ -118,11 +176,10 @@ class PatchEmbedding(nn.Module):
         #     nn.Linear(in_dim, d_model, bias=False),
         # )
 
-
     def forward(self, x, mask=None):
         bz, ch_num, patch_num, patch_size = x.shape
         # print(x)
-        if mask == None:
+        if mask is None:
             mask_x = x
         else:
             mask_x = x.clone()
@@ -134,6 +191,7 @@ class PatchEmbedding(nn.Module):
         # patch_emb = patch_emb.permute(0, 2, 1, 3).contiguous().view(bz, ch_num, patch_num, self.d_model)
 
         # Temporal Encoding2
+        mask_x = mask_x.contiguous().view(bz, 1, ch_num * patch_num, patch_size)
         patch_emb = self.proj_in2(mask_x)
         patch_emb = patch_emb.permute(0, 2, 1, 3).contiguous().view(bz, ch_num, patch_num, 2000)
         patch_emb = self.temporal_proj(patch_emb)

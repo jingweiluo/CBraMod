@@ -14,7 +14,12 @@ class Model(nn.Module):
         )
         if param.use_pretrained_weights:
             map_location = torch.device(f'cuda:{param.cuda}')
-            self.backbone.load_state_dict(torch.load(param.foundation_dir, map_location=map_location))
+            # self.backbone.load_state_dict(torch.load(param.foundation_dir, map_location=map_location))
+            ckpt = torch.load(param.foundation_dir, map_location=map_location)
+            state_dict = ckpt["model"] if isinstance(ckpt, dict) and "model" in ckpt else ckpt
+            if any(k.startswith("module.") for k in state_dict.keys()):
+                state_dict = {k[len("module."):]: v for k, v in state_dict.items()}
+            self.backbone.load_state_dict(state_dict, strict=True)
         self.backbone.proj_out = nn.Identity()
         if param.classifier == 'avgpooling_patch_reps':
             self.classifier = nn.Sequential(

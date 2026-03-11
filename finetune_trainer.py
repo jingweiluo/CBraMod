@@ -8,7 +8,7 @@ from torch.nn import CrossEntropyLoss, BCEWithLogitsLoss, MSELoss
 from tqdm import tqdm
 
 from finetune_evaluator import Evaluator
-
+import datetime
 
 class Trainer(object):
     def __init__(self, params, data_loader, model):
@@ -129,21 +129,35 @@ class Trainer(object):
                     cm_best = cm
                     self.best_model_states = copy.deepcopy(self.model.state_dict())
         self.model.load_state_dict(self.best_model_states)
+        log_path = os.path.join(self.params.model_dir, "test_results.txt")
         with torch.no_grad():
             print("***************************Test************************")
             acc, kappa, f1, cm = self.test_eval.get_metrics_for_multiclass(self.model)
+                # ===== 记录信息 =====
+            dataset_name = self.params.downstream_dataset
+            pretrained_ckpt = self.params.foundation_dir  # 你传入的预训练权重路径
+            now_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            msg = f"[{now_time}] Dataset: {dataset_name}"
+            msg_ckpt = f"Pretrained ckpt: {pretrained_ckpt}"
+
             print("***************************Test results************************")
-            print(
-                "Test Evaluation: acc: {:.5f}, kappa: {:.5f}, f1: {:.5f}".format(
-                    acc,
-                    kappa,
-                    f1,
-                )
-            )
+            msg1 = "***************************Test************************"
+            msg2 = "***************************Test results************************"
+            msg3 = "Test Evaluation: acc: {:.5f}, kappa: {:.5f}, f1: {:.5f}".format(acc, kappa, f1)
+            msg4 = str(cm)
+            print(msg3)
             print(cm)
+            # ===== 写入 txt 文件 =====
             if not os.path.isdir(self.params.model_dir):
                 os.makedirs(self.params.model_dir)
-            model_path = self.params.model_dir + "/{}_epoch{}_acc_{:.5f}_kappa_{:.5f}_f1_{:.5f}.pth".format(self.params.downstream_dataset, best_f1_epoch, acc, kappa, f1)
+            with open(log_path, "a") as f:
+                f.write(msg + "\n")
+                f.write(msg_ckpt + "\n")
+                f.write(msg3 + "\n\n")
+            # ===== 保存模型 =====
+            model_path = self.params.model_dir + "/{}_epoch{}_acc_{:.5f}_kappa_{:.5f}_f1_{:.5f}.pth".format(
+                self.params.downstream_dataset, best_f1_epoch, acc, kappa, f1
+            )
             torch.save(self.model.state_dict(), model_path)
             print("model save in " + model_path)
 
@@ -160,7 +174,13 @@ class Trainer(object):
                 self.optimizer.zero_grad()
                 x = x.cuda()
                 y = y.cuda()
-                pred = self.model(x)
+                # pred = self.model(x)
+                # ====== input additional ch_coords =======
+                coords = getattr(self.params, "ch_coords", None)
+                if coords is not None:
+                    coords = coords.to(x.device)
+                pred = self.model(x, ch_coords=coords)
+                # ==========================================
 
                 loss = self.criterion(pred, y)
 
