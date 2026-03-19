@@ -9,16 +9,16 @@ commands = [
     # f"CUDA_VISIBLE_DEVICES=3 \
     # torchrun --nproc_per_node=2 \
 
-    f"CUDA_VISIBLE_DEVICES=6 \
+    f"CUDA_VISIBLE_DEVICES=0 \
     python pretrain_main.py \
     --pretrain_dataset Chisco,TUEG,Lee2019_SSVEP,Lee2019_MI,BI2015a,Cho2017,Zhou2016,AlexMI,BNCI2014_008,Kalunga2016,BNCI2015_001,Nakanishi2015 \
     --epochs 500 --seed 3 \
     --mask_ratio 0.5 \
-    --train_mode recon \
-    --use_channel_subset \
+    --train_mode both \
     --lambda_codebook 0 \
-    --foundation_dir pretrained_weights_recon_3_6 \
-    --batch_size 32",
+    --foundation_dir pretrained_weights_both_3_17 \
+    --use_channel_subset \
+    --batch_size 8",
 ]
 
 # 重试次数设置

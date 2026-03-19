@@ -8,13 +8,20 @@ downstream_tasks = [
     "PhysioNet-MI",
     "BCIC2020-3",
     "BCIC-IV-2a",
+    "Mumtaz2016",
+    "MentalArithmetic",
+    "SHU-MI",
+    # "CHB-MIT",
+
 ]
 
-gpu_id = 2
+gpu_id = 3
 seed = 3
-batch_size = 64
-foundation_ckpt = "pretrained_weights_recon_3_6/best_epoch150_tail0.537500.pth"
+batch_size = 32
+log_file_name = "test_results_317recon.txt" # text_results.txt
+foundation_ckpt = "pretrained_weights_recon_3_17/last.pth"
 
+# pretrained_weights_both/best_epoch196_loss3.088265.pth
 # pretrained_weights_both_ctx_contra/best_epoch7_tail31.693869.pth
 # pretrained_weights_both/best_epoch197_tail0.008238.pth
 
@@ -26,7 +33,8 @@ for ds in downstream_tasks:
     --seed {seed} \
     --use_pretrained_weights \
     --foundation_dir {foundation_ckpt} \
-    --batch_size {batch_size}
+    --batch_size {batch_size} \
+    --log_file_name {log_file_name}
     """
     commands.append(cmd)
 

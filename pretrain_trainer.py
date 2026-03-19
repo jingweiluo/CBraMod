@@ -44,12 +44,10 @@ class _GatherLayer(torch.autograd.Function):
 
     @staticmethod
     def backward(ctx, *grads):
-        # grads: tuple length = world, each is grad of corresponding gathered output
         if not _is_ddp():
             return grads[0]
         rank = dist.get_rank()
         grad_local = grads[rank].contiguous()
-        # make sure all ranks participate
         dist.all_reduce(grad_local, op=dist.ReduceOp.SUM)
         return grad_local
 
@@ -61,8 +59,8 @@ def _ddp_all_gather_with_grad(x: torch.Tensor) -> torch.Tensor:
     """
     if not _is_ddp():
         return x
-    xs = _GatherLayer.apply(x)  # tuple of (B, ...)
-    return torch.cat(list(xs), dim=0)  # (world*B, ...)
+    xs = _GatherLayer.apply(x)
+    return torch.cat(list(xs), dim=0)
 
 
 class Trainer(object):
@@ -160,9 +158,7 @@ class Trainer(object):
             "weight_decay": self.params.weight_decay,
             "lr_scheduler": self.params.lr_scheduler,
             "train_mode": self.params.train_mode,
-            # recon
             "mask_ratio": self.params.mask_ratio,
-            # contrastive
             "contrastive_tau": float(getattr(self.params, "contrastive_tau", 0.1)),
             "contrastive_pool": str(getattr(self.params, "contrastive_pool", "mean")),
             "use_spatial_kl": bool(getattr(self.params, "use_spatial_kl", True)),
@@ -237,54 +233,6 @@ class Trainer(object):
         assert mask.dim() == 3
         return (mask.reshape(mask.size(0), -1) > 0)
 
-    # def _compute_contra_loss(self, contra_out, q_out, mask):
-    #     assert contra_out.dim() == 4, "Expect as (B,C,P,D)"
-    #     B, _, _, D = contra_out.shape
-    #     device = contra_out.device
-    #     tau = float(getattr(self.params, "logit_temp", getattr(self.params, "contrastive_tau", 0.1)))
-
-    #     feats_q = q_out["x"]  # (B,C,P,D)
-    #     ctx = self._flatten_tokens(contra_out)   # (B,T,D)
-    #     q   = self._flatten_tokens(feats_q)      # (B,T,D)
-    #     mask_bool = self._flatten_mask(mask)     # (B,T) bool
-
-    #     Tflat = ctx.size(1)
-    #     ctx_flat = ctx.reshape(B * Tflat, D)
-    #     q_flat   = q.reshape(B * Tflat, D)
-    #     mask_flat = mask_bool.reshape(B * Tflat)
-
-    #     Nmask = int(mask_flat.sum().item())
-    #     if Nmask < 2:
-    #         return contra_out.new_tensor(0.0)
-
-    #     x = F.normalize(ctx_flat[mask_flat], dim=-1)  # (Nmask,D)
-    #     # y = F.normalize(q_flat[mask_flat], dim=-1)    # (Nmask,D) # 对比量化特征和原始特征
-    #     y = F.normalize(ctx_flat[mask_flat], dim=-1)    # (Nmask,D) # 对比原始特征和原始特征
-
-    #     # x = F.normalize(q_flat[mask_flat], dim=-1)  # (Nmask,D)
-    #     # y = F.normalize(q_flat[mask_flat], dim=-1)
-
-    #     # # 检查对角相似度 vs 非对角相似度，如果值相近说明无法区分
-    #     # if self.rank == 0:
-    #     #     sim = (x @ y.t())
-    #     #     diag = sim.diag().mean().item()
-    #     #     off  = (sim.sum() - sim.diag().sum()) / (Nmask*(Nmask-1))
-    #     #     print("diag", diag, "off", off.item())
-
-    #     logits_xy = (x @ y.t()) / tau
-    #     labels = torch.arange(Nmask, device=device)
-    #     loss_xy = F.cross_entropy(logits_xy, labels)
-
-    #     logits_yx = (y @ x.t()) / tau
-    #     loss_yx = F.cross_entropy(logits_yx, labels)
-
-    #     loss = 0.5 * (loss_xy + loss_yx)
-
-    #     # 归一化：除以 log(Nmask)（随机基线尺度）
-    #     denom = torch.log(x.new_tensor(float(max(Nmask, 2))))
-    #     loss = loss / denom
-    #     return loss
-
     def _compute_contra_loss(self, contra_out, q_out, mask):
         assert contra_out.dim() == 4, "Expect as (B,C,P,D)"
         B, C, P, D = contra_out.shape
@@ -294,27 +242,13 @@ class Trainer(object):
         feats_q = q_out["x"]  # (B,C,P,D)
 
         contra_out = contra_out.permute(0, 2, 1, 3).contiguous()
-        feats_q    = feats_q.permute(0, 2, 1, 3).contiguous()
+        feats_q = feats_q.permute(0, 2, 1, 3).contiguous()
 
-        # 缺少 permute(0,2,1,3)
         ctx_flat = contra_out.reshape(B * P, C * D)
-        q_flat   = feats_q.reshape(B * P, C * D)
-
-        # ctx_flat = contra_out.mean(dim=1).reshape(B * P, D)
-        # q_flat   = feats_q.mean(dim=1).reshape(B * P, D)
-
-        # x = F.normalize(ctx_flat, dim=-1)
-        # y = F.normalize(q_flat, dim=-1)
+        q_flat = feats_q.reshape(B * P, C * D)
 
         x = F.normalize(ctx_flat, dim=-1)
         y = F.normalize(q_flat, dim=-1)
-
-        # # 检查对角相似度 vs 非对角相似度，如果值相近说明无法区分
-        # if self.rank == 0:
-        #     sim = (x @ y.t())
-        #     diag = sim.diag().mean().item()
-        #     off  = (sim.sum() - sim.diag().sum()) / (Nmask*(Nmask-1))
-        #     print("diag", diag, "off", off.item())
 
         logits_xy = (x @ y.t()) / tau
         labels = torch.arange(B * P, device=device)
@@ -325,10 +259,21 @@ class Trainer(object):
 
         loss = 0.5 * (loss_xy + loss_yx)
 
-        # 归一化：除以 log(Nmask)（随机基线尺度）
         denom = torch.log(x.new_tensor(float(max(B * P, 2))))
         loss = loss / denom
         return loss
+
+    def _reduce_scalar(self, value: float) -> float:
+        """
+        Reduce a python float across DDP ranks by mean.
+        """
+        if not self.is_ddp:
+            return float(value)
+
+        t = torch.tensor(float(value), device=self.device, dtype=torch.float32)
+        dist.all_reduce(t, op=dist.ReduceOp.SUM)
+        t = t / self.world_size
+        return float(t.item())
 
     # -------------------------
     # Train
@@ -346,7 +291,7 @@ class Trainer(object):
 
         for epoch in range(start_epoch, int(self.params.epochs)):
             if self.batch_sampler is not None and hasattr(self.batch_sampler, "set_epoch"):
-                self.batch_sampler.set_epoch(epoch) # make sure every epoch has different batch order
+                self.batch_sampler.set_epoch(epoch)
 
             self.model.train()
 
@@ -358,98 +303,153 @@ class Trainer(object):
                     dynamic_ncols=True,
                 )
 
-            loss_sum = torch.zeros((), device=self.device)
+            # 用 Python float 统计，避免在整个 epoch 内累积 GPU tensor
+            loss_sum = 0.0
+            tail_sum = 0.0
             steps_done = 0
-            loss_hist = []
+            half_point = len(self.data_loader) // 2
+
             for step, batch in enumerate(self.data_loader):
                 x, ds_id = batch
                 ds_id = int(ds_id[0].item()) if torch.is_tensor(ds_id) else int(ds_id)
+                dataset_name = self.params.dataset_list[ds_id]
 
-                # =========================================================
-                # Get channel & seq info with ds_id
-                # =========================================================
-                base_ch_names = self.params.ds_ch_names[ds_id]
-                base_seq_len = self.params.ds_seq_len[ds_id]
-                base_ch_coords = self.params.ds_ch_coords[ds_id]
-                self.params.seq_len = base_seq_len
-                if not torch.is_tensor(base_ch_coords):
-                    base_ch_coords = torch.tensor(base_ch_coords, dtype=torch.float32)
+                try:
+                    # =========================================================
+                    # Get channel & seq info with ds_id
+                    # =========================================================
+                    base_ch_names = self.params.ds_ch_names[ds_id]
+                    base_seq_len = self.params.ds_seq_len[ds_id]
+                    base_ch_coords = self.params.ds_ch_coords[ds_id]
+                    self.params.seq_len = base_seq_len
+                    if not torch.is_tensor(base_ch_coords):
+                        base_ch_coords = torch.tensor(base_ch_coords, dtype=torch.float32)
 
-                # ---- data to device
-                if use_cuda:
-                    x = x.to(self.device, non_blocking=True)
-                    ch_coords = base_ch_coords.to(self.device, non_blocking=True)
-                else:
-                    x = x.to(self.device)
-                    ch_coords = base_ch_coords.to(self.device)
+                    # ---- data to device
+                    if use_cuda:
+                        x = x.to(self.device, non_blocking=True)
+                        ch_coords = base_ch_coords.to(self.device, non_blocking=True)
+                    else:
+                        x = x.to(self.device)
+                        ch_coords = base_ch_coords.to(self.device)
 
-                # =========================================================
-                # Optional: Channel selects and shuffle
-                # =========================================================
-                ch_names = base_ch_names
-                if self.params.use_channel_subset:
-                    idx = self._sample_channel_index(C=x.size(1), device=x.device)
-                    x, ch_coords, ch_names = self._apply_channel_index(x, ch_coords, ch_names, idx)
-                self.params.ch_coords = ch_coords
-                self.params.ch_names = ch_names
-                # =========================================================
+                    # =========================================================
+                    # Optional: Channel selects and shuffle
+                    # =========================================================
+                    ch_names = base_ch_names
+                    if self.params.use_channel_subset:
+                        idx = self._sample_channel_index(C=x.size(1), device=x.device)
+                        x, ch_coords, ch_names = self._apply_channel_index(x, ch_coords, ch_names, idx)
 
-                # print params
-                if epoch == 0 and step == 0 and self.rank == 0:
-                    print(self.params)
+                    if epoch == 0 and step == 0 and self.rank == 0:
+                        print(self.params)
 
-                # reset grad
-                self.optimizer.zero_grad(set_to_none=True)
+                    # reset grad
+                    self.optimizer.zero_grad(set_to_none=True)
 
-                # =========================================================
-                # Calculate Loss
-                # =========================================================
-                bz, ch_num, patch_num, _ = x.shape
-                mask = generate_mask(
-                    bz, ch_num, patch_num,
-                    mask_ratio=self.params.mask_ratio,
-                    device=self.device,
-                )
-                # y:重建输出 feats_ctx:特征输出（masked embed as input）q_out: 量化输出（unmasked embed as input）
-                recon_out, contra_out, q_out, patch_embed_unmasked = self.model(x, mask=mask, ch_coords=self.params.ch_coords)
-                loss_codebook = torch.zeros((), device=self.device)
+                    # =========================================================
+                    # Calculate Loss
+                    # =========================================================
+                    bz, ch_num, patch_num, _ = x.shape
+                    mask = generate_mask(
+                        bz, ch_num, patch_num,
+                        mask_ratio=self.params.mask_ratio,
+                        device=self.device,
+                    )
 
-                if self.params.train_mode == "recon":
-                    recon_loss = self.criterion(recon_out[mask == 1], patch_embed_unmasked[mask == 1])
-                    loss = recon_loss
-                elif self.params.train_mode == "contrastive":
-                    contra_loss = self._compute_contra_loss(contra_out, q_out, mask)
-                    if q_out is not None:
-                        prob_ppl = q_out["prob_perplexity"]
-                        num_vars = q_out["num_vars"]
-                        loss_codebook = (num_vars - prob_ppl) / num_vars
-                    loss = contra_loss + self.params.lambda_codebook * loss_codebook
-                elif self.params.train_mode == "both":
-                    recon_loss = self.criterion(recon_out[mask == 1], x[mask == 1])
-                    contra_loss = self._compute_contra_loss(contra_out, q_out, mask)
-                    if q_out is not None:
-                        prob_ppl = q_out["prob_perplexity"]
-                        num_vars = q_out["num_vars"]
-                        loss_codebook = (num_vars - prob_ppl) / num_vars
-                    loss = recon_loss + contra_loss + self.params.lambda_codebook * loss_codebook
-                    if self.rank == 0 and step % 1000 == 0:
-                        print(f"loss: {loss}, recon_loss: {recon_loss}, contra_loss: {contra_loss}, codebook_loss: {loss_codebook}")
+                    recon_out, contra_out, q_out, patch_embed_unmasked = self.model(
+                        x, mask=mask, ch_coords=ch_coords
+                    )
+                    loss_codebook = torch.zeros((), device=self.device)
 
-                loss.backward()
+                    if self.params.train_mode == "recon":
+                        recon_loss = self.criterion(recon_out[mask == 1], patch_embed_unmasked[mask == 1])
+                        loss = recon_loss
 
-                if self.params.clip_value > 0:
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params.clip_value)
+                    elif self.params.train_mode == "contrastive":
+                        contra_loss = self._compute_contra_loss(contra_out, q_out, mask)
+                        if q_out is not None:
+                            prob_ppl = q_out["prob_perplexity"]
+                            num_vars = q_out["num_vars"]
+                            loss_codebook = (num_vars - prob_ppl) / num_vars
+                        loss = contra_loss + self.params.lambda_codebook * loss_codebook
 
-                self.optimizer.step()
-                self.optimizer_scheduler.step()
+                    elif self.params.train_mode == "both":
+                        recon_loss = self.criterion(recon_out[mask == 1], x[mask == 1])
+                        contra_loss = self._compute_contra_loss(contra_out, q_out, mask)
+                        if q_out is not None:
+                            prob_ppl = q_out["prob_perplexity"]
+                            num_vars = q_out["num_vars"]
+                            loss_codebook = (num_vars - prob_ppl) / num_vars
+                        loss = recon_loss + contra_loss + self.params.lambda_codebook * loss_codebook
 
-                loss_sum += loss.detach()
-                steps_done += 1
-                loss_hist.append(loss.detach())
+                        if self.rank == 0 and step % 1000 == 0:
+                            print(
+                                f"loss: {loss.item():.6f}, "
+                                f"recon_loss: {recon_loss.item():.6f}, "
+                                f"contra_loss: {contra_loss.item():.6f}, "
+                                f"codebook_loss: {loss_codebook.item():.6f}"
+                            )
+                    else:
+                        raise ValueError(f"Unknown train_mode: {self.params.train_mode}")
 
-                if pbar is not None:
-                    pbar.set_postfix(loss=float(loss.detach().item()), lr=float(self.optimizer.param_groups[0]["lr"]))
-                    pbar.update(1)
+                    loss.backward()
+
+                    if self.params.clip_value > 0:
+                        torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.params.clip_value)
+
+                    self.optimizer.step()
+                    self.optimizer_scheduler.step()
+
+                    # 只保存标量，不保存 GPU tensor
+                    loss_v = float(loss.item())
+                    loss_sum += loss_v
+                    steps_done += 1
+                    if step >= half_point:
+                        tail_sum += loss_v
+
+                    if pbar is not None:
+                        pbar.set_postfix(
+                            ds=dataset_name,
+                            loss=loss_v,
+                            lr=float(self.optimizer.param_groups[0]["lr"]),
+                        )
+                        pbar.update(1)
+
+                    # 可选：周期性打印显存，便于观察是否持续增长
+                    if self.rank == 0 and use_cuda and (step % 1000 == 0):
+                        alloc = torch.cuda.memory_allocated(self.device) / 1024 ** 3
+                        reserved = torch.cuda.memory_reserved(self.device) / 1024 ** 3
+                        max_alloc = torch.cuda.max_memory_allocated(self.device) / 1024 ** 3
+                        print(
+                            f"[MEM] epoch={epoch+1} step={step+1} ds={dataset_name} "
+                            f"alloc={alloc:.2f}G reserved={reserved:.2f}G max_alloc={max_alloc:.2f}G"
+                        )
+
+                except torch.OutOfMemoryError as e:
+                    if self.rank == 0:
+                        print("\n" + "=" * 80)
+                        print(f"[OOM] epoch={epoch+1}, step={step+1}, dataset={dataset_name}, ds_id={ds_id}")
+                        print(f"[OOM] x.shape={tuple(x.shape)}")
+                        print(f"[OOM] seq_len={base_seq_len}, n_channels={len(base_ch_names)}")
+                        if self.params.use_channel_subset:
+                            print(f"[OOM] after subset channels={x.size(1)}")
+                        if torch.cuda.is_available():
+                            alloc = torch.cuda.memory_allocated(self.device) / 1024 ** 3
+                            reserved = torch.cuda.memory_reserved(self.device) / 1024 ** 3
+                            max_alloc = torch.cuda.max_memory_allocated(self.device) / 1024 ** 3
+                            print(
+                                f"[OOM-MEM] alloc={alloc:.2f}G reserved={reserved:.2f}G "
+                                f"max_alloc={max_alloc:.2f}G"
+                            )
+                        print(f"[OOM] error: {str(e)}")
+                        print("=" * 80 + "\n")
+
+                    # 显式释放当前 step 的局部变量引用
+                    del x, ch_coords, mask, recon_out, contra_out, q_out, patch_embed_unmasked, loss_codebook, loss
+                    if torch.cuda.is_available():
+                        torch.cuda.empty_cache()
+                    raise
 
             # =========================
             # after step loop
@@ -457,40 +457,28 @@ class Trainer(object):
             if pbar is not None:
                 pbar.close()
 
-            # ---- epoch mean loss（DDP reduce）
-            mean_loss = loss_sum / max(steps_done, 1)
-            if self.is_ddp:
-                dist.all_reduce(mean_loss, op=dist.ReduceOp.SUM)
-                mean_loss = mean_loss / self.world_size
+            mean_loss_v = loss_sum / max(steps_done, 1)
 
-            mean_loss_v = float(mean_loss.item())
-            lr = float(self.optimizer.param_groups[0]["lr"])
-
-            # ---- [ADD] tail mean loss (method 1: latter half of epoch)
-            if len(loss_hist) > 0:
-                start = len(loss_hist) // 2
-                tail_sum = torch.stack(loss_hist[start:]).sum()
-                tail_steps = len(loss_hist) - start
-                tail_mean = tail_sum / max(tail_steps, 1)
+            if steps_done > half_point:
+                tail_steps = steps_done - half_point
+                tail_mean_v = tail_sum / max(tail_steps, 1)
             else:
-                tail_mean = mean_loss  # fallback
+                tail_mean_v = mean_loss_v
 
-            if self.is_ddp:
-                dist.all_reduce(tail_mean, op=dist.ReduceOp.SUM)
-                tail_mean = tail_mean / self.world_size
+            # DDP reduce
+            mean_loss_v = self._reduce_scalar(mean_loss_v)
+            tail_mean_v = self._reduce_scalar(tail_mean_v)
 
-            tail_mean_v = float(tail_mean.item())
+            lr = float(self.optimizer.param_groups[0]["lr"])
 
             print(
                 f"[rank {self.rank}] epoch={epoch+1} steps={steps_done} "
                 f"mean_loss={mean_loss_v:.6f} tail_mean={tail_mean_v:.6f} lr={lr:.6g}"
             )
 
-            # ---- checkpoint
             last_path = os.path.join(self.params.foundation_dir, "last.pth")
             self._save_ckpt(last_path, epoch + 1, best_loss)
 
-            # ---- [CHANGED] use tail_mean_v to select best (best_loss now tracks tail-mean)
             if tail_mean_v < best_loss:
                 best_loss = tail_mean_v
                 best_path = os.path.join(

@@ -10,6 +10,12 @@ class Evaluator:
         self.params = params
         self.data_loader = data_loader
 
+    def _get_coords(self, x):
+        coords = getattr(self.params, "ch_coords", None)
+        if coords is not None:
+            coords = coords.to(x.device)
+        return coords
+
     def get_metrics_for_multiclass(self, model):
         model.eval()
 
@@ -19,7 +25,10 @@ class Evaluator:
             x = x.cuda()
             y = y.cuda()
 
-            pred = model(x)
+            # pred = model(x)
+            coords = self._get_coords(x)
+            pred = model(x, ch_coords=coords)
+
             pred_y = torch.max(pred, dim=-1)[1]
 
             truths += y.cpu().squeeze().numpy().tolist()
@@ -42,7 +51,10 @@ class Evaluator:
         for x, y in tqdm(self.data_loader, mininterval=1):
             x = x.cuda()
             y = y.cuda()
-            pred = model(x)
+            # pred = model(x)
+            coords = self._get_coords(x)
+            pred = model(x, ch_coords=coords)
+
             score_y = torch.sigmoid(pred)
             pred_y = torch.gt(score_y, 0.5).long()
             truths += y.long().cpu().squeeze().numpy().tolist()
@@ -67,7 +79,10 @@ class Evaluator:
         for x, y in tqdm(self.data_loader, mininterval=1):
             x = x.cuda()
             y = y.cuda()
-            pred = model(x)
+            # pred = model(x)
+            coords = self._get_coords(x)
+            pred = model(x, ch_coords=coords)
+
             truths += y.cpu().squeeze().numpy().tolist()
             preds += pred.cpu().squeeze().numpy().tolist()
 

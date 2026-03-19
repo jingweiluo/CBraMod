@@ -1,4 +1,6 @@
 ROOT_DIR='/data1/hust_bciml_eegdata/'
+ROOT_DIR2='/data2/hust_bciml_eegdata/'
+
 
 MOABB_DATASET_LIST = [
     # e.g. "BNCI2014_001", "PhysionetMI", "Cho2017", "Lee2019_SSVEP"
@@ -31,6 +33,10 @@ CLS_NUM_DICT = {
     'Lee2019_MI': 2,
     'Chisco': 39,
     'Chisco_read': 39,
+    'SHU-MI': 2,
+    'Mumtaz2016': 2,
+    'MentalArithmetic': 2, # imbalance classes. Resting:Stress = 3:1
+    'CHB-MIT': 2,
 }
 
 SEQ_LEN_DICT = {
@@ -57,6 +63,10 @@ SEQ_LEN_DICT = {
     'Lee2019_MI': 4,
     'Chisco': 3,
     'Chisco_read': 5,
+    'SHU-MI': 4,
+    'Mumtaz2016': 5,
+    'MentalArithmetic': 5,
+    'CHB-MIT': 10,
 }
 
 SUB_NUM_DICT = {
@@ -80,6 +90,10 @@ SUB_NUM_DICT = {
     'Lee2019_MI': 54,
     'Chisco': 5,
     'Chisco_read': 5,
+    'SHU-MI': 25,
+    'Mumtaz2016': 64, # 34 MDD patients, 30 healthy
+    'MentalArithmetic': 36,
+    'CHB-MIT': 24,
 }
 
 CHAN_NAME_DICT = {
@@ -127,6 +141,14 @@ CHAN_NAME_DICT = {
     'Kalunga2016': ['Oz', 'O1', 'O2', 'PO3', 'POz', 'PO7', 'PO8', 'PO4'], # moabb直接读取
     'Chisco': ['T9', 'FT9', 'FTT9h', 'T7', 'TP7', 'TTP7h', 'C5', 'FTT7h', 'Ft7', 'FFT7h', 'FC5', 'FCC5h', 'CCP5h', 'TPP5h', 'P7', 'P9', 'P11', 'PO11', 'PO9', 'PPO7', 'P5', 'CPP5h', 'CP3', 'C3', 'FC3', 'FFC5h', 'F5', 'F7', 'AF7', 'AFF5h', 'F3', 'FFC3h', 'FCC3h', 'C1', 'CCP3h', 'CPP3h', 'P3', 'PO3', 'POO7', 'POO9h', 'POO11h', 'I1', 'OI1', 'POO3', 'PO1', 'PPO1', 'CPP1h', 'CP1', 'CCP1h', 'FCC1h', 'FC1', 'FFC1h', 'F1', 'AF3', 'FP1', 'FPz', 'AFz', 'Fz', 'FCz', 'FCCz', 'Cz', 'CPPz', 'PPOz', 'POz', 'POOz', 'Oz', 'Iz', 'I2', 'OI2', 'POO4', 'PO2', 'PPO2', 'CPP2h', 'CP2', 'CCP2h', 'FCC2h', 'FC2', 'FFC2h', 'F2', 'AF4', 'Fp2', 'AF8', 'AFF6h', 'F4', 'FFC4h', 'FCC4h', 'C2', 'CCP4h', 'CPP4h', 'P4', 'PO4', 'POO8', 'POO10h', 'POO12h', 'PO12', 'PO10', 'PPO8', 'P6', 'CPP6h', 'CP4', 'C4', 'FC4', 'FFC6h', 'F6', 'F8', 'FFT8h', 'FC6', 'FCC6h', 'CCP6h', 'TPP8h', 'P8', 'P10', 'P12', 'TTP8h', 'C6', 'FTT8h', 'FT8', 'T10', 'FT10', 'FTT10h', 'T8', 'TP8'],
     'Chisco_read': ['T9', 'FT9', 'FTT9h', 'T7', 'TP7', 'TTP7h', 'C5', 'FTT7h', 'Ft7', 'FFT7h', 'FC5', 'FCC5h', 'CCP5h', 'TPP5h', 'P7', 'P9', 'P11', 'PO11', 'PO9', 'PPO7', 'P5', 'CPP5h', 'CP3', 'C3', 'FC3', 'FFC5h', 'F5', 'F7', 'AF7', 'AFF5h', 'F3', 'FFC3h', 'FCC3h', 'C1', 'CCP3h', 'CPP3h', 'P3', 'PO3', 'POO7', 'POO9h', 'POO11h', 'I1', 'OI1', 'POO3', 'PO1', 'PPO1', 'CPP1h', 'CP1', 'CCP1h', 'FCC1h', 'FC1', 'FFC1h', 'F1', 'AF3', 'FP1', 'FPz', 'AFz', 'Fz', 'FCz', 'FCCz', 'Cz', 'CPPz', 'PPOz', 'POz', 'POOz', 'Oz', 'Iz', 'I2', 'OI2', 'POO4', 'PO2', 'PPO2', 'CPP2h', 'CP2', 'CCP2h', 'FCC2h', 'FC2', 'FFC2h', 'F2', 'AF4', 'Fp2', 'AF8', 'AFF6h', 'F4', 'FFC4h', 'FCC4h', 'C2', 'CCP4h', 'CPP4h', 'P4', 'PO4', 'POO8', 'POO10h', 'POO12h', 'PO12', 'PO10', 'PPO8', 'P6', 'CPP6h', 'CP4', 'C4', 'FC4', 'FFC6h', 'F6', 'F8', 'FFT8h', 'FC6', 'FCC6h', 'CCP6h', 'TPP8h', 'P8', 'P10', 'P12', 'TTP8h', 'C6', 'FTT8h', 'FT8', 'T10', 'FT10', 'FTT10h', 'T8', 'TP8'],
+    'SHU-MI': ["Fp1", "Fp2", "Fz", "F3", "F4", "F7", "F8", "FC1", "FC2", "FC5", "FC6", "Cz", "C3", "C4", "T3", "T4", "A1", "A2", "CP1", "CP2", "CP5", "CP6", "Pz", "P3", "P4", "T5", "T6", "PO3", "PO4", "Oz", "O1", "O2"],
+    'Mumtaz2016': ['Fp1', 'Fp2', 'F3', 'F4', 'C3', 'C4', 'P3',
+                     'P4', 'O1', 'O2', 'F7', 'F8', 'T3', 'T4',
+                     'T5', 'T6', 'Fz', 'Cz', 'Pz'],
+    'MentalArithmetic': ['Fp1', 'Fp2', 'F3', 'F4', 'F7', 'F8', 'T3', 'T4',
+                     'C3', 'C4', 'T5', 'T6', 'P3', 'P4', 'O1', 'O2',
+                     'Fz', 'Cz', 'Pz', 'A2-A1'],
+    'CHB-MIT': ["FP1", "F7", "T7", "P7", "FP2", "F8", "T8", "P8", "FP1", "F3", "C3", "P3", "FP2", "F4", "C4", "P4"],
 }
 
 SFREQ_DICT = {
@@ -153,6 +175,10 @@ SFREQ_DICT = {
     'Lee2019_MI': 1000,
     'Chisco': 500,
     'Chisco_read': 500,
+    'SHU-MI': 250,
+    'Mumtaz2016': 256,
+    'MentalArithmetic': 500,
+    'CHB-MIT': 256,
 }
 
 DATA_DIR_DICT = {
@@ -166,12 +192,16 @@ DATA_DIR_DICT = {
     'BCIC2020-3': 'BCIC2020-3',
     'Chisco': 'Chisco',
     'Chisco_read': 'Chisco_read',
+    'SHU-MI': 'SHU-MI',
+    'Mumtaz2016': 'Mumtaz2016',
+    'MentalArithmetic': 'MentalArithmetic',
+    'CHB-MIT': 'chb-mit',
 }
 
 LMDB_DIR_DICT = {
     'BCIC-IV-2a': 'BCICIV-2a-lmdb',
     '2b': 'BCICIV-2b-lmdb',
-    'TUEG': 'TUEG-lmdb',
+    'TUEG': 'TUEG_all-lmdb',
     'BNCI2015_001': 'BNCI2015_001-lmdb',
     'Zhou2016': 'Zhou2016-lmdb',
     'Nakanishi2015': 'Nakanishi2015-lmdb',
@@ -191,4 +221,8 @@ LMDB_DIR_DICT = {
     'Kalunga2016': 'Kalunga2016-lmdb',
     'Chisco': 'Chisco-lmdb',
     'Chisco_read': 'Chisco_read-lmdb',
+    'SHU-MI': 'SHU-MI-lmdb',
+    'Mumtaz2016': 'mumtaz2016-lmdb',
+    'MentalArithmetic': 'mental-arithmetic-lmdb',
+    'CHB-MIT': 'chb-mit-lmdb',
 }

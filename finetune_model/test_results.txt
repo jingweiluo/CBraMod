@@ -1,0 +1,240 @@
+=========================================
+qt vs qt
+=========================================
+[2026-03-02 12:01:42] Dataset: FACED
+Pretrained ckpt: pretrained_weights_both/best_epoch116_loss3.140898.pth
+Test Evaluation: acc: 0.47330, kappa: 0.40663, f1: 0.47973
+
+[2026-03-02 12:18:07] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both/best_epoch116_loss3.140898.pth
+Test Evaluation: acc: 0.56856, kappa: 0.42466, f1: 0.56196
+
+[2026-03-02 12:28:11] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both/best_epoch116_loss3.140898.pth
+Test Evaluation: acc: 0.48533, kappa: 0.35667, f1: 0.48484
+
+[2026-03-02 12:31:24] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both/best_epoch116_loss3.140898.pth
+Test Evaluation: acc: 0.42188, kappa: 0.22917, f1: 0.37328
+
+======================================
+[2026-03-02 15:36:09] Dataset: FACED
+Pretrained ckpt: pretrained_weights_both/best_epoch197_tail0.008238.pth
+Test Evaluation: acc: 0.46739, kappa: 0.39964, f1: 0.47558
+
+[2026-03-02 15:52:33] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both/best_epoch197_tail0.008238.pth
+Test Evaluation: acc: 0.58295, kappa: 0.44390, f1: 0.57910
+
+[2026-03-02 16:02:34] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both/best_epoch197_tail0.008238.pth
+Test Evaluation: acc: 0.43600, kappa: 0.29500, f1: 0.43543
+
+[2026-03-02 16:05:58] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both/best_epoch197_tail0.008238.pth
+Test Evaluation: acc: 0.44531, kappa: 0.26042, f1: 0.44359
+
+=========================================
+【****】
+[2026-03-02 18:31:22] Dataset: FACED
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.47571, kappa: 0.40917, f1: 0.48341
+
+[2026-03-02 18:48:20] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.58408, kappa: 0.44536, f1: 0.58656
+
+[2026-03-02 18:58:57] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.46133, kappa: 0.32667, f1: 0.45792
+
+[2026-03-02 19:02:28] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.45226, kappa: 0.26968, f1: 0.42886
+
+=========================================
+[2026-03-03 09:39:51] Dataset: FACED
+Pretrained ckpt: pretrained_weights_both/best_epoch277_tail0.003667.pth
+Test Evaluation: acc: 0.46444, kappa: 0.39623, f1: 0.47470
+
+[2026-03-03 09:57:00] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both/best_epoch277_tail0.003667.pth
+Test Evaluation: acc: 0.56420, kappa: 0.41878, f1: 0.55973
+
+[2026-03-03 10:07:23] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both/best_epoch277_tail0.003667.pth
+Test Evaluation: acc: 0.43600, kappa: 0.29500, f1: 0.43547
+
+[2026-03-03 10:10:48] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both/best_epoch277_tail0.003667.pth
+Test Evaluation: acc: 0.45747, kappa: 0.27662, f1: 0.43583
+
+=========================================
+
+
+[2026-03-03 10:37:18] Dataset: FACED
+Pretrained ckpt: pretrained_weights_both/best_epoch254_tail0.003734.pth
+Test Evaluation: acc: 0.48282, kappa: 0.41685, f1: 0.49205
+
+[2026-03-03 10:53:40] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both/best_epoch254_tail0.003734.pth
+Test Evaluation: acc: 0.57361, kappa: 0.43134, f1: 0.56672
+
+[2026-03-03 11:03:31] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both/best_epoch254_tail0.003734.pth
+Test Evaluation: acc: 0.42000, kappa: 0.27500, f1: 0.41675
+
+[2026-03-03 11:06:48] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both/best_epoch254_tail0.003734.pth
+Test Evaluation: acc: 0.43663, kappa: 0.24884, f1: 0.41721
+
+=========================================
+qt vs qt 489epoch
+
+[2026-03-03 17:21:57] Dataset: FACED
+Pretrained ckpt: pretrained_weights_both/last.pth
+Test Evaluation: acc: 0.46498, kappa: 0.39670, f1: 0.47350
+
+[2026-03-03 17:41:29] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both/last.pth
+Test Evaluation: acc: 0.56522, kappa: 0.42022, f1: 0.56662
+
+[2026-03-03 17:53:06] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both/last.pth
+Test Evaluation: acc: 0.44133, kappa: 0.30167, f1: 0.44077
+
+[2026-03-03 17:56:59] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both/last.pth
+Test Evaluation: acc: 0.45226, kappa: 0.26968, f1: 0.43095
+
+
+=========================================
+ctx vs ctx
+=========================================
+
+[2026-03-03 14:59:46] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both_ctx_contra/best_epoch227_tail0.226504.pth
+Test Evaluation: acc: 0.60903, kappa: 0.47864, f1: 0.60833
+
+[2026-03-03 15:11:39] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both_ctx_contra/best_epoch227_tail0.226504.pth
+Test Evaluation: acc: 0.45733, kappa: 0.32167, f1: 0.45702
+
+[2026-03-03 15:15:05] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both_ctx_contra/best_epoch227_tail0.226504.pth
+Test Evaluation: acc: 0.47656, kappa: 0.30208, f1: 0.46818
+
+=========================================
+[2026-03-03 16:36:34] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both_ctx_contra/best_epoch116_tail0.457447.pth
+Test Evaluation: acc: 0.60410, kappa: 0.47203, f1: 0.60281
+
+[2026-03-03 16:47:07] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both_ctx_contra/best_epoch116_tail0.457447.pth
+Test Evaluation: acc: 0.44667, kappa: 0.30833, f1: 0.44670
+
+[2026-03-03 16:50:38] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both_ctx_contra/best_epoch116_tail0.457447.pth
+Test Evaluation: acc: 0.50868, kappa: 0.34491, f1: 0.50052
+
+=========================================
+qt vs qt 全通道一起对比
+
+[2026-03-04 11:05:19] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both_allchans/best_epoch209_tail0.465716.pth
+Test Evaluation: acc: 0.59350, kappa: 0.45795, f1: 0.59485
+
+[2026-03-04 11:18:51] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both_allchans/best_epoch209_tail0.465716.pth
+Test Evaluation: acc: 0.38267, kappa: 0.22833, f1: 0.38197
+
+[2026-03-04 11:22:53] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both_allchans/best_epoch209_tail0.465716.pth
+Test Evaluation: acc: 0.40278, kappa: 0.20370, f1: 0.39408
+
+=========================================
+recons
+
+[2026-03-04 14:52:18] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_recon_3_3/best_epoch229_tail0.082538.pth
+Test Evaluation: acc: 0.60571, kappa: 0.47422, f1: 0.60590
+
+[2026-03-04 15:02:17] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_recon_3_3/best_epoch229_tail0.082538.pth
+Test Evaluation: acc: 0.45467, kappa: 0.31833, f1: 0.45382
+
+[2026-03-04 15:05:37] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_recon_3_3/best_epoch229_tail0.082538.pth
+Test Evaluation: acc: 0.48003, kappa: 0.30671, f1: 0.45478
+
+
+=========================================
+3.11
+[2026-03-11 19:22:15] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_recon_3_6/best_epoch5_tail0.000651.pth
+Test Evaluation: acc: 0.54519, kappa: 0.39356, f1: 0.54509
+
+[2026-03-11 19:40:35] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_recon_3_6/best_epoch5_tail0.000651.pth
+Test Evaluation: acc: 0.48267, kappa: 0.35333, f1: 0.48176
+
+=========================================
+
+
+[2026-03-11 21:39:43] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_recon_3_6/best_epoch9_tail0.000526.pth
+Test Evaluation: acc: 0.58456, kappa: 0.44605, f1: 0.58693
+
+[2026-03-11 21:56:06] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_recon_3_6/best_epoch9_tail0.000526.pth
+Test Evaluation: acc: 0.48667, kappa: 0.35833, f1: 0.48670
+
+[2026-03-11 22:01:20] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_recon_3_6/best_epoch9_tail0.000526.pth
+Test Evaluation: acc: 0.39583, kappa: 0.19444, f1: 0.39497
+
+[2026-03-12 10:10:10] Dataset: Mumtaz2016
+Pretrained ckpt: pretrained_weights_recon_3_6/best_epoch9_tail0.000526.pth
+Test Evaluation: acc: 0.89304, pr_auc: 0.98429, roc_auc: 0.98018
+
+[2026-03-12 10:12:18] Dataset: MentalArithmetic
+Pretrained ckpt: pretrained_weights_recon_3_6/best_epoch9_tail0.000526.pth
+Test Evaluation: acc: 0.50000, pr_auc: 0.61100, roc_auc: 0.75362
+
+[2026-03-12 10:25:03] Dataset: SHU-MI
+Pretrained ckpt: pretrained_weights_recon_3_6/best_epoch9_tail0.000526.pth
+Test Evaluation: acc: 0.61576, pr_auc: 0.65877, roc_auc: 0.67066
+
+[2026-03-14 19:33:19] Dataset: CHB-MIT
+Pretrained ckpt: pretrained_weights_recon_3_6/best_epoch9_tail0.000526.pth
+Test Evaluation: acc: 0.73414, pr_auc: 0.48568, roc_auc: 0.90643
+
+
+=============================
+[2026-03-18 17:57:55] Dataset: FACED
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.11111, kappa: 0.00000, f1: 0.03571
+
+[2026-03-18 18:26:33] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.61009, kappa: 0.48012, f1: 0.61061
+
+[2026-03-18 18:49:10] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.41333, kappa: 0.26667, f1: 0.41444
+
+[2026-03-18 18:57:39] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.53385, kappa: 0.37847, f1: 0.52011
+
+[2026-03-18 19:11:00] Dataset: Mumtaz2016
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.91565, pr_auc: 0.98112, roc_auc: 0.98007
+
+[2026-03-18 19:14:16] Dataset: MentalArithmetic
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.50000, pr_auc: 0.51509, roc_auc: 0.76678
+
+[2026-03-18 19:34:54] Dataset: SHU-MI
+Pretrained ckpt: pretrained_weights_both/best_epoch201_tail0.003927.pth
+Test Evaluation: acc: 0.60350, pr_auc: 0.68549, roc_auc: 0.68339

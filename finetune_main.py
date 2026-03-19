@@ -11,16 +11,14 @@ from models import model_for_faced, model_for_faced26, model_for_seedv, model_fo
     model_for_speech, model_for_mumtaz, model_for_seedvig, model_for_stress, model_for_tuev, model_for_tuab, \
     model_for_bciciv2a
 
-from utils.constants import LMDB_DIR_DICT, CLS_NUM_DICT, ROOT_DIR, CHAN_NAME_DICT
+from utils.constants import LMDB_DIR_DICT, CLS_NUM_DICT, ROOT_DIR, ROOT_DIR2, CHAN_NAME_DICT
 import os
-# os.environ["CUDA_VISIBLE_DEVICES"] = "1,2,3,4"
-os.environ["CUDA_VISIBLE_DEVICES"] = "5,6,7,8"
 
 
 def main():
     parser = argparse.ArgumentParser(description='Big model downstream')
     parser.add_argument('--seed', type=int, default=3407, help='random seed (default: 0)')
-    parser.add_argument('--cuda', type=int, default=1, help='cuda number (default: 1)')
+    parser.add_argument('--cuda', type=int, default=0, help='cuda number (default: 1)')
     parser.add_argument('--epochs', type=int, default=50, help='number of epochs (default: 5)')
     parser.add_argument('--batch_size', type=int, default=64, help='batch size for training (default: 32)')
     parser.add_argument('--lr', type=float, default=1e-4, help='learning rate (default: 1e-3)')
@@ -45,6 +43,7 @@ def main():
     #                     help='datasets_dir')
     # parser.add_argument('--num_of_classes', type=int, default=4, help='number of classes')
     parser.add_argument('--model_dir', type=str, default='finetune_model', help='model_dir')
+    parser.add_argument('--log_file_name', type=str, default='test_results.txt', help='log_dir')
     """############ Downstream dataset settings ############"""
 
     parser.add_argument('--num_workers', type=int, default=16, help='num_workers')
@@ -69,7 +68,8 @@ def main():
 
     # 根据数据集名称自动读取相关信息
     dataset_name = params.downstream_dataset
-    params.datasets_dir = os.path.join(ROOT_DIR, 'lmdb', LMDB_DIR_DICT[dataset_name])
+    root = ROOT_DIR2 if dataset_name in ['SHU-MI', 'MentalArithmetic', 'CHB-MIT', 'Mumtaz2016'] else ROOT_DIR
+    params.datasets_dir = os.path.join(root, 'lmdb', LMDB_DIR_DICT[dataset_name])
     params.num_of_classes = CLS_NUM_DICT[dataset_name]
 
     # 计算出3d坐标

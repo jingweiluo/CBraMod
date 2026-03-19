@@ -1,0 +1,7 @@
+[2026-03-19 09:52:41] Dataset: FACED
+Pretrained ckpt: pretrained_weights_recon_3_17/last.pth
+Test Evaluation: acc: 0.11111, kappa: 0.00000, f1: 0.03571
+
+[2026-03-19 10:17:33] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_recon_3_17/last.pth
+Test Evaluation: acc: 0.57801, kappa: 0.43723, f1: 0.57923
