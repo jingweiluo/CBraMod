@@ -18,7 +18,6 @@ gpu_id = 1
 seed = 3
 batch_size = 8
 d_model = 400
-log_file_name = "test_results_recon_325_125epochs.txt" # text_results.txt
 foundation_ckpt = "pretrained_weights_recon_3_19/last.pth"
 
 # pretrained_weights_both/best_epoch196_loss3.088265.pth
@@ -35,7 +34,6 @@ for ds in downstream_tasks:
     --use_pretrained_weights \
     --foundation_dir {foundation_ckpt} \
     --batch_size {batch_size} \
-    --log_file_name {log_file_name}
     """
     commands.append(cmd)
 

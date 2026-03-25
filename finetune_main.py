@@ -51,7 +51,6 @@ def main():
     #                     help='datasets_dir')
     # parser.add_argument('--num_of_classes', type=int, default=4, help='number of classes')
     parser.add_argument('--model_dir', type=str, default='finetune_model', help='model_dir')
-    parser.add_argument('--log_file_name', type=str, default='test_results.txt', help='log_dir')
     """############ Downstream dataset settings ############"""
 
     parser.add_argument('--num_workers', type=int, default=16, help='num_workers')

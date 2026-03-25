@@ -177,7 +177,16 @@ class Trainer(object):
 
         self.model.load_state_dict(self.best_model_states)
 
-        log_path = os.path.join(self.params.model_dir, self.params.log_file_name)
+        # write exp results into a txt
+        save_dir = os.path.join(os.getcwd(), "exp_results")
+        os.makedirs(save_dir, exist_ok=True)
+        ckpt_path = getattr(self.params, "foundation_dir", None)
+        if ckpt_path is not None and ckpt_path != "":
+            ckpt_name = os.path.splitext(os.path.basename(ckpt_path))[0]
+        else:
+            ckpt_name = "no_ckpt"
+        log_path = os.path.join(save_dir, f"{ckpt_name}.txt")
+
         with torch.no_grad():
             print("***************************Test************************")
             acc, kappa, f1, cm = self.test_eval.get_metrics_for_multiclass(self.model)
@@ -281,7 +290,16 @@ class Trainer(object):
 
         self.model.load_state_dict(self.best_model_states)
 
-        log_path = os.path.join(self.params.model_dir, self.params.log_file_name)
+        save_dir = os.path.join(os.getcwd(), "exp_results")
+        os.makedirs(save_dir, exist_ok=True)
+        ckpt_path = getattr(self.params, "foundation_dir", None)
+        if ckpt_path is not None and ckpt_path != "":
+            ckpt_name = os.path.splitext(os.path.basename(ckpt_path))[0]
+        else:
+            ckpt_name = "no_ckpt"
+        log_path = os.path.join(save_dir, f"{ckpt_name}.txt")
+
+
         with torch.no_grad():
             print("***************************Test************************")
             acc, pr_auc, roc_auc, cm = self.test_eval.get_metrics_for_binaryclass(self.model)
