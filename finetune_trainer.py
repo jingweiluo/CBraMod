@@ -113,6 +113,13 @@ class Trainer(object):
                 x = x.cuda()
                 y = y.cuda()
 
+                mean = x.mean(dim=(-1, -2), keepdim=True)          # [B, C, 1, 1]
+                std = x.std(dim=(-1, -2), keepdim=True, unbiased=False)
+                x = (x - mean) / (std + 1e-6)
+
+                z_score_mean = x.abs().mean()
+                print(f"Mean value after z-score: {z_score_mean}")
+
                 coords = self._get_coords(x)
                 pred = self.model(x, ch_coords=coords)
 
@@ -158,6 +165,11 @@ class Trainer(object):
                     f1_best = f1
                     cm_best = cm
                     self.best_model_states = copy.deepcopy(self.model.state_dict())
+
+                # 打印测试集评估结果（不保存模型权重）
+                print("***************************Test results************************")
+                acc, kappa, f1, cm = self.test_eval.get_metrics_for_multiclass(self.model)
+                print("Test Evaluation: acc: {:.5f}, kappa: {:.5f}, f1: {:.5f}".format(acc, kappa, f1))
 
         if self.best_model_states is None:
             self.best_model_states = copy.deepcopy(self.model.state_dict())
@@ -257,6 +269,11 @@ class Trainer(object):
                     roc_auc_best = roc_auc
                     cm_best = cm
                     self.best_model_states = copy.deepcopy(self.model.state_dict())
+
+                # 打印测试集评估结果（不保存模型权重）
+                print("***************************Test results************************")
+                acc, pr_auc, roc_auc, cm = self.test_eval.get_metrics_for_binaryclass(self.model)
+                print("Test Evaluation: acc: {:.5f}, pr_auc: {:.5f}, roc_auc: {:.5f}".format(acc, pr_auc, roc_auc))
 
         if self.best_model_states is None:
             self.best_model_states = copy.deepcopy(self.model.state_dict())

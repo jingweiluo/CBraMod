@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 # from models.criss_cross_transformer import TransformerEncoderLayer, TransformerEncoder
-# from models.criss_cross_transformer_rope import TransformerEncoderLayer, TransformerEncoder
+from models.criss_cross_transformer_rope import TransformerEncoderLayer, TransformerEncoder
 # from models.criss_cross_transformer_cord import TransformerEncoderLayer, TransformerEncoder
-from models.linear_cord import TransformerEncoderLayer, TransformerEncoder
+# from models.linear_cord import TransformerEncoderLayer, TransformerEncoder
 
 from utils.util import build_4d_fourier_pe, get_ch_pos, get_2d_sincos_pe
 from models.gv_quantizer_4d import GumbelVectorQuantizer
@@ -69,30 +69,30 @@ class CBraMod(nn.Module):
 
     #     return feats_ctx, q_out
 
-    # def forward(self, x, mask=None, ch_coords=None):
-    #     patch_emb = self.patch_embedding(x, mask)
-    #     feats = self.encoder(patch_emb, coords=ch_coords)
-    #     out = self.proj_out(feats)
-    #     return out
-
     def forward(self, x, mask=None, ch_coords=None):
-        patch_embed_unmasked = self.patch_embedding(x, mask=None)  # (B,C,P,D)
+        patch_emb = self.patch_embedding(x, mask)
+        feats = self.encoder(patch_emb, coords=ch_coords)
+        out = self.proj_out(feats)
+        return out, feats, feats, patch_emb
 
-        if mask is None:
-            # ===== 下游：只要特征 =====
-            feats_ctx = self.encoder(patch_embed_unmasked, coords=ch_coords)  # (B,C,P,D)
-            return feats_ctx
+    # def forward(self, x, mask=None, ch_coords=None):
+    #     patch_embed_unmasked = self.patch_embedding(x, mask=None)  # (B,C,P,D)
 
-        # ===== 预训练：需要 recon + contra + quantizer =====
-        q_out = self.quantizer(patch_embed_unmasked, produce_targets=False)
+    #     if mask is None:
+    #         # ===== 下游：只要特征 =====
+    #         feats_ctx = self.encoder(patch_embed_unmasked, coords=ch_coords)  # (B,C,P,D)
+    #         return feats_ctx
 
-        patch_embed_masked = patch_embed_unmasked.clone()
-        patch_embed_masked[mask == 1] = self.patch_embed_mask_encoding
+    #     # ===== 预训练：需要 recon + contra + quantizer =====
+    #     q_out = self.quantizer(patch_embed_unmasked, produce_targets=False)
 
-        feats_ctx = self.encoder(patch_embed_masked, coords=ch_coords)  # (B,C,P,D)
-        recon_out = self.proj_out(feats_ctx)
-        contra_out = self.final_proj(feats_ctx)
-        return recon_out, contra_out, q_out, patch_embed_unmasked
+    #     patch_embed_masked = patch_embed_unmasked.clone()
+    #     patch_embed_masked[mask == 1] = self.patch_embed_mask_encoding
+
+    #     feats_ctx = self.encoder(patch_embed_masked, coords=ch_coords)  # (B,C,P,D)
+    #     recon_out = self.proj_out(feats_ctx)
+    #     contra_out = self.final_proj(feats_ctx)
+    #     return recon_out, contra_out, q_out, patch_embed_unmasked
 
 class PatchEmbedding(nn.Module):
     def __init__(self, in_dim, out_dim, d_model, seq_len):
@@ -131,40 +131,45 @@ class PatchEmbedding(nn.Module):
 
         self.mask_encoding = nn.Parameter(torch.zeros(in_dim), requires_grad=False)
 
-        # self.proj_in = nn.Sequential(
-        #     nn.Conv2d(in_channels=1, out_channels=25, kernel_size=(1, 49), stride=(1, 25), padding=(0, 24)), # 长度浓缩，增加不同波段的view
-        #     nn.GroupNorm(5, 25),
+        self.proj_in = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=25, kernel_size=(1, 49), stride=(1, 25), padding=(0, 24)), # 长度浓缩，增加不同波段的view
+            nn.GroupNorm(5, 25),
+            nn.GELU(),
+
+            nn.Conv2d(in_channels=25, out_channels=25, kernel_size=(1, 3), stride=(1, 1), padding=(0, 1)),
+            nn.GroupNorm(5, 25),
+            nn.GELU(),
+
+            nn.Conv2d(in_channels=25, out_channels=25, kernel_size=(1, 3), stride=(1, 1), padding=(0, 1)),
+            nn.GroupNorm(5, 25),
+            nn.GELU(),
+        )
+
+        # self.proj_in2 = nn.Sequential(
+        #     nn.Conv2d(1, 100, kernel_size=(1, 99), stride=(1, 10), padding=(0, 49)),
+        #     nn.GroupNorm(20, 100),
         #     nn.GELU(),
 
-        #     nn.Conv2d(in_channels=25, out_channels=25, kernel_size=(1, 3), stride=(1, 1), padding=(0, 1)),
-        #     nn.GroupNorm(5, 25),
+        #     # 保持 T 不变：kernel=9 -> padding=4
+        #     nn.Conv2d(100, 100, kernel_size=(1, 9), stride=(1, 1), padding=(0, 4)),
+        #     nn.GroupNorm(20, 100),
         #     nn.GELU(),
 
-        #     nn.Conv2d(in_channels=25, out_channels=25, kernel_size=(1, 3), stride=(1, 1), padding=(0, 1)),
-        #     nn.GroupNorm(5, 25),
+        #     # 再来一层也保持 T 不变：建议用奇数核更稳
+        #     nn.Conv2d(100, 100, kernel_size=(1, 3), stride=(1, 1), padding=(0, 1)),
+        #     nn.GroupNorm(20, 100),
         #     nn.GELU(),
         # )
+        # self.temporal_proj = nn.Sequential(
+        #     nn.Linear(2000, d_model),
+        #     nn.Dropout(0.1),
+        # )
 
-        self.proj_in2 = nn.Sequential(
-            nn.Conv2d(1, 100, kernel_size=(1, 99), stride=(1, 10), padding=(0, 49)),
-            nn.GroupNorm(20, 100),
-            nn.GELU(),
 
-            # 保持 T 不变：kernel=9 -> padding=4
-            nn.Conv2d(100, 100, kernel_size=(1, 9), stride=(1, 1), padding=(0, 4)),
-            nn.GroupNorm(20, 100),
-            nn.GELU(),
-
-            # 再来一层也保持 T 不变：建议用奇数核更稳
-            nn.Conv2d(100, 100, kernel_size=(1, 3), stride=(1, 1), padding=(0, 1)),
-            nn.GroupNorm(20, 100),
-            nn.GELU(),
-        )
         self.temporal_proj = nn.Sequential(
-            nn.Linear(2000, d_model),
+            nn.Linear(in_dim, d_model),
             nn.Dropout(0.1),
         )
-
         self.spectral_proj = nn.Sequential(
             nn.Linear((in_dim // 2) + 1, d_model),
             nn.Dropout(0.1),
@@ -185,16 +190,17 @@ class PatchEmbedding(nn.Module):
             mask_x = x.clone()
             mask_x[mask == 1] = self.mask_encoding
 
-        # # Temporal Encoding
-        # mask_x = mask_x.contiguous().view(bz, 1, ch_num * patch_num, patch_size)
-        # patch_emb = self.proj_in(mask_x)
-        # patch_emb = patch_emb.permute(0, 2, 1, 3).contiguous().view(bz, ch_num, patch_num, self.d_model)
-
-        # Temporal Encoding2
+        # Temporal Encoding
         mask_x = mask_x.contiguous().view(bz, 1, ch_num * patch_num, patch_size)
-        patch_emb = self.proj_in2(mask_x)
-        patch_emb = patch_emb.permute(0, 2, 1, 3).contiguous().view(bz, ch_num, patch_num, 2000)
+        patch_emb = self.proj_in(mask_x)
+        patch_emb = patch_emb.permute(0, 2, 1, 3).contiguous().view(bz, ch_num, patch_num, patch_size)
         patch_emb = self.temporal_proj(patch_emb)
+
+        # # Temporal Encoding2
+        # mask_x = mask_x.contiguous().view(bz, 1, ch_num * patch_num, patch_size)
+        # patch_emb = self.proj_in2(mask_x)
+        # patch_emb = patch_emb.permute(0, 2, 1, 3).contiguous().view(bz, ch_num, patch_num, 2000)
+        # patch_emb = self.temporal_proj(patch_emb)
 
         # Spectral Encoding
         mask_x = mask_x.contiguous().view(bz*ch_num*patch_num, patch_size)

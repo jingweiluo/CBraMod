@@ -201,7 +201,7 @@ DATA_DIR_DICT = {
 LMDB_DIR_DICT = {
     'BCIC-IV-2a': 'BCICIV-2a-lmdb',
     '2b': 'BCICIV-2b-lmdb',
-    'TUEG': 'TUEG_all-lmdb',
+    'TUEG': 'TUEG-lmdb',
     'BNCI2015_001': 'BNCI2015_001-lmdb',
     'Zhou2016': 'Zhou2016-lmdb',
     'Nakanishi2015': 'Nakanishi2015-lmdb',

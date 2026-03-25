@@ -479,6 +479,16 @@ class Trainer(object):
                 ds_id = int(ds_id[0].item()) if torch.is_tensor(ds_id) else int(ds_id)
                 dataset_name = self.params.dataset_list[ds_id]
 
+                mean = x.mean(dim=(-1, -2), keepdim=True)          # [B, C, 1, 1]
+                std = x.std(dim=(-1, -2), keepdim=True, unbiased=False)
+                x = (x - mean) / (std + 1e-6)
+
+                if step % 100 == 0:
+                    z_score_mean = x.abs().mean()
+                    print(f"Mean value after z-score of {dataset_name}: {z_score_mean}")
+                    # print(f"{x}")
+
+
                 try:
                     base_ch_names = self.params.ds_ch_names[ds_id]
                     base_seq_len = self.params.ds_seq_len[ds_id]
@@ -540,7 +550,7 @@ class Trainer(object):
 
                     recon_loss = self.criterion(
                         recon_out[mask_main == 1],
-                        patch_embed_unmasked[mask_main == 1]
+                        x[mask_main == 1]
                     )
 
                     contra_loss, contra_stats = self._compute_q_context_alignment_loss(
@@ -680,6 +690,14 @@ class Trainer(object):
 
             last_path = os.path.join(self.params.foundation_dir, "last.pth")
             self._save_ckpt(last_path, epoch + 1, best_loss)
+
+            # save ckpt every ten epochs
+            if epoch % max(self.params.epochs // 5000, 10) == 0:
+                regular_model_path = os.path.join(
+                    self.params.foundation_dir,
+                    f'regular_epoch{epoch + 1}_tail{tail_mean_v:.6f}.pth'
+                )
+                self._save_ckpt(regular_model_path, epoch + 1, best_loss)
 
             if tail_mean_v < best_loss:
                 best_loss = tail_mean_v

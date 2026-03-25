@@ -1,0 +1,23 @@
+[2026-03-24 01:17:35] Dataset: FACED
+Pretrained ckpt: pretrained_weights_recon_3_19/last.pth
+Test Evaluation: acc: 0.50282, kappa: 0.43897, f1: 0.50589
+
+[2026-03-24 04:12:55] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_recon_3_19/last.pth
+Test Evaluation: acc: 0.61131, kappa: 0.48162, f1: 0.61375
+
+[2026-03-24 05:47:31] Dataset: BCIC2020-3
+Pretrained ckpt: pretrained_weights_recon_3_19/last.pth
+Test Evaluation: acc: 0.56533, kappa: 0.45667, f1: 0.56513
+
+[2026-03-24 06:24:34] Dataset: BCIC-IV-2a
+Pretrained ckpt: pretrained_weights_recon_3_19/last.pth
+Test Evaluation: acc: 0.39410, kappa: 0.19213, f1: 0.35311
+
+[2026-03-24 06:44:33] Dataset: MentalArithmetic
+Pretrained ckpt: pretrained_weights_recon_3_19/last.pth
+Test Evaluation: acc: 0.56250, pr_auc: 0.72029, roc_auc: 0.80078
+
+[2026-03-24 08:40:57] Dataset: SHU-MI
+Pretrained ckpt: pretrained_weights_recon_3_19/last.pth
+Test Evaluation: acc: 0.60930, pr_auc: 0.65405, roc_auc: 0.66312

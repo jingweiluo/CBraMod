@@ -233,7 +233,7 @@ def main():
     parser = argparse.ArgumentParser(description='EEG Foundation Model')
 
     parser.add_argument('--seed', type=int, default=42)
-    parser.add_argument('--epochs', type=int, default=200)
+    parser.add_argument('--epochs', type=int, default=500)
     parser.add_argument('--batch_size', type=int, default=32)
     parser.add_argument('--lr', type=float, default=5e-4)
     parser.add_argument('--weight_decay', type=float, default=5e-2)

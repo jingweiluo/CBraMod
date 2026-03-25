@@ -479,6 +479,14 @@ class Trainer(object):
             last_path = os.path.join(self.params.foundation_dir, "last.pth")
             self._save_ckpt(last_path, epoch + 1, best_loss)
 
+            # save ckpt every ten epochs
+            if epoch % max(self.params.epochs // 5000, 10) == 0:
+                regular_model_path = os.path.join(
+                    self.params.foundation_dir,
+                    f'regular_epoch{epoch + 1}_tail{tail_mean_v:.6f}.pth'
+                )
+                self.save_checkpoint(regular_model_path, epoch + 1, best_loss)
+
             if tail_mean_v < best_loss:
                 best_loss = tail_mean_v
                 best_path = os.path.join(

@@ -12,14 +12,14 @@ downstream_tasks = [
     "MentalArithmetic",
     "SHU-MI",
     # "CHB-MIT",
-
 ]
 
-gpu_id = 3
+gpu_id = 1
 seed = 3
-batch_size = 32
-log_file_name = "test_results_317recon.txt" # text_results.txt
-foundation_ckpt = "pretrained_weights_recon_3_17/last.pth"
+batch_size = 8
+d_model = 400
+log_file_name = "test_results_recon_325_125epochs.txt" # text_results.txt
+foundation_ckpt = "pretrained_weights_recon_3_19/last.pth"
 
 # pretrained_weights_both/best_epoch196_loss3.088265.pth
 # pretrained_weights_both_ctx_contra/best_epoch7_tail31.693869.pth
@@ -31,6 +31,7 @@ for ds in downstream_tasks:
     python finetune_main.py \
     --downstream_dataset {ds} \
     --seed {seed} \
+    --d_model {d_model} \
     --use_pretrained_weights \
     --foundation_dir {foundation_ckpt} \
     --batch_size {batch_size} \

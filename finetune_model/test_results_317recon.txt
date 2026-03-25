@@ -5,3 +5,27 @@ Test Evaluation: acc: 0.11111, kappa: 0.00000, f1: 0.03571
 [2026-03-19 10:17:33] Dataset: PhysioNet-MI
 Pretrained ckpt: pretrained_weights_recon_3_17/last.pth
 Test Evaluation: acc: 0.57801, kappa: 0.43723, f1: 0.57923
+
+[2026-03-20 17:39:18] Dataset: FACED
+Pretrained ckpt: pretrained_weights_recon_3_19/best_epoch10_tail0.154585.pth
+Test Evaluation: acc: 0.47880, kappa: 0.41202, f1: 0.48175
+
+[2026-03-21 13:42:41] Dataset: FACED
+Pretrained ckpt: pretrained_weights_recon_3_19/best_epoch10_tail0.154585.pth
+Test Evaluation: acc: 0.41479, kappa: 0.34112, f1: 0.41676
+[2026-03-21 22:43:47] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_recon_3_19/best_epoch10_tail0.154585.pth
+Test Evaluation: acc: 0.57531, kappa: 0.43358, f1: 0.57481
+[2026-03-22 11:18:08] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_recon_3_19/best_epoch10_tail0.154585.pth
+Test Evaluation: acc: 0.57625, kappa: 0.43499, f1: 0.57705
+[2026-03-22 13:50:45] Dataset: FACED
+Pretrained ckpt: pretrained_weights_recon_3_19/best_epoch10_tail0.154585.pth
+Test Evaluation: acc: 0.11353, kappa: 0.00309, f1: 0.02673
+[2026-03-23 11:37:48] Dataset: FACED
+Pretrained ckpt: pretrained_weights_recon_3_19/best_epoch10_tail0.154585.pth
+Test Evaluation: acc: 0.41640, kappa: 0.34010, f1: 0.41510
+
+[2026-03-23 18:45:20] Dataset: FACED
+Pretrained ckpt: pretrained_weights_recon_3_19/best_epoch10_tail0.154585.pth
+Test Evaluation: acc: 0.49262, kappa: 0.42708, f1: 0.49339

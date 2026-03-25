@@ -57,9 +57,12 @@ class Evaluator:
 
             score_y = torch.sigmoid(pred)
             pred_y = torch.gt(score_y, 0.5).long()
-            truths += y.long().cpu().squeeze().numpy().tolist()
-            preds += pred_y.cpu().squeeze().numpy().tolist()
-            scores += score_y.cpu().numpy().tolist()
+            # truths += y.long().cpu().squeeze().numpy().tolist()
+            # preds += pred_y.cpu().squeeze().numpy().tolist()
+            # scores += score_y.cpu().numpy().tolist()
+            truths.extend(y.long().detach().cpu().reshape(-1).tolist())
+            preds.extend(pred_y.detach().cpu().reshape(-1).tolist())
+            scores.extend(score_y.detach().cpu().reshape(-1).tolist())
 
         truths = np.array(truths)
         preds = np.array(preds)

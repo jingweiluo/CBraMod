@@ -1,0 +1,3 @@
+[2026-03-25 09:42:20] Dataset: PhysioNet-MI
+Pretrained ckpt: pretrained_weights_recon_3_19/last.pth
+Test Evaluation: acc: 0.58463, kappa: 0.44610, f1: 0.58658

@@ -12,14 +12,18 @@ commands = [
     f"CUDA_VISIBLE_DEVICES=0 \
     python pretrain_main.py \
     --pretrain_dataset Chisco,TUEG,Lee2019_SSVEP,Lee2019_MI,BI2015a,Cho2017,Zhou2016,AlexMI,BNCI2014_008,Kalunga2016,BNCI2015_001,Nakanishi2015 \
-    --epochs 500 --seed 3 \
-    --mask_ratio 0.5 \
-    --train_mode both \
+    --epochs 500 --seed 888 \
+    --mask_ratio 0.55 \
+    --d_model 400 \
+    --train_mode recon \
     --lambda_codebook 0 \
-    --foundation_dir pretrained_weights_both_3_17 \
-    --use_channel_subset \
-    --batch_size 8",
+    --foundation_dir pretrained_weights_recon_3_25 \
+    --batch_size 16",
 ]
+    # --use_channel_subset \
+    # --pretrain_dataset Chisco,TUEG,Lee2019_SSVEP,Lee2019_MI,BI2015a,Cho2017,Zhou2016,AlexMI,BNCI2014_008,Kalunga2016,BNCI2015_001,Nakanishi2015 \
+    # --resume pretrained_weights_recon_3_19/last.pth\
+
 
 # 重试次数设置
 max_retries = 1
